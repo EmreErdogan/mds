@@ -86,11 +86,12 @@ type entry struct {
 }
 
 type page struct {
-	Title   string
-	Crumbs  []crumb
-	Content template.HTML
-	RawURL  string
-	Reload  bool
+	Title        string
+	Crumbs       []crumb
+	Content      template.HTML
+	RawURL       string
+	Reload       bool
+	HighlightCSS template.CSS
 }
 
 // Close releases resources held by the Server.
@@ -308,6 +309,7 @@ func (s *Server) resolve(urlPath string) string {
 
 func (s *Server) render(w http.ResponseWriter, p page) {
 	p.Reload = s.hub != nil
+	p.HighlightCSS = template.CSS(render.HighlightCSS())
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "page.html", p); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

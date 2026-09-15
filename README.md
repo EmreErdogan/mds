@@ -52,6 +52,8 @@ mds version            Print the version
   them. Put `export MDS_HOST=127.0.0.1` in your shell rc to stay local-only.
 - In directory mode, markdown files are rendered and everything else is served
   as-is. Hidden files (dot-prefixed) are never served.
+- Fenced code blocks are syntax-highlighted; the palette follows the system
+  light/dark preference.
 - Pages reload automatically when the file you are viewing (or the directory
   listing) changes on disk. `--no-reload` turns this off.
 - Append `?raw` to any markdown URL to see the source.

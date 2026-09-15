@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}}</title>
 <style>
+{{.HighlightCSS}}
+</style>
+<style>
+/* page styles come last so pre/code backgrounds win over chroma's */
 :root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a}
 @media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}}
 *{box-sizing:border-box}

@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-15
+
+### Added
+- Syntax highlighting for fenced code blocks (chroma), with light and dark
+  palettes following the system theme.
+
 ## [0.3.0] - 2026-09-15
 
 ### Added

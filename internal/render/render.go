@@ -4,8 +4,12 @@ package render
 import (
 	"bytes"
 	"strings"
+	"sync"
 
+	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/yuin/goldmark"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -13,8 +17,21 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
+const (
+	lightStyle = "github"
+	darkStyle  = "github-dark"
+)
+
 var md = goldmark.New(
-	goldmark.WithExtensions(extension.GFM),
+	goldmark.WithExtensions(
+		extension.GFM,
+		highlighting.NewHighlighting(
+			highlighting.WithFormatOptions(
+				chromahtml.WithClasses(true),
+				chromahtml.ClassPrefix("hl-"),
+			),
+		),
+	),
 	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 	goldmark.WithRendererOptions(html.WithUnsafe()),
 )
@@ -65,6 +82,26 @@ func nodeText(n ast.Node, src []byte) string {
 		return ast.WalkContinue, nil
 	})
 	return b.String()
+}
+
+var (
+	cssOnce sync.Once
+	cssText string
+)
+
+// HighlightCSS returns the stylesheet for highlighted code blocks, with a
+// light palette by default and a dark one under prefers-color-scheme: dark.
+func HighlightCSS() string {
+	cssOnce.Do(func() {
+		var b strings.Builder
+		f := chromahtml.New(chromahtml.WithClasses(true), chromahtml.ClassPrefix("hl-"))
+		_ = f.WriteCSS(&b, styles.Get(lightStyle))
+		b.WriteString("@media (prefers-color-scheme: dark) {\n")
+		_ = f.WriteCSS(&b, styles.Get(darkStyle))
+		b.WriteString("}\n")
+		cssText = b.String()
+	})
+	return cssText
 }
 
 // IsMarkdown reports whether the file name has a markdown extension.
