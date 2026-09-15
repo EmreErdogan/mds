@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-15
+
 ### Added
 - Render a single markdown file as HTML: `mds README.md`.
 - Serve a directory with listings and rendered markdown: `mds ./docs`.
