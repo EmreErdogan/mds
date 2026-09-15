@@ -7,7 +7,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/EmreErdogan/mds/internal/config"
 	"github.com/EmreErdogan/mds/internal/server"
@@ -22,9 +25,12 @@ func printUsage() {
 
 Usage:
   mds [flags] <file.md | directory>
-  mds config [directory]  Show effective settings and where they come from
-  mds update              Update mds to the latest release
-  mds version             Print the version
+  mds serve [flags] <path>  Same as above; use when the path is named like a
+                            command (e.g. a directory called "config")
+  mds config [directory]    Show effective settings and where they come from
+                            (defaults to the current directory)
+  mds update                Update mds to the latest release
+  mds version               Print the version
 
 Flags:
   -p, --port <n>        Port to listen on (default 8080)
@@ -48,19 +54,26 @@ Examples:
 `)
 }
 
+// commands lists the subcommand names, used for collision hints.
+var commands = []string{"serve", "config", "update", "upgrade", "version", "help"}
+
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
+	args := os.Args[1:]
+	if len(args) > 0 {
+		warnCollision(args[0])
+		switch args[0] {
+		case "serve":
+			args = args[1:]
 		case "version", "-v", "--version":
 			fmt.Println("mds " + version)
 			return
 		case "update", "upgrade":
-			if err := update.Run(version, os.Args[2:]); err != nil {
+			if err := update.Run(version, args[1:]); err != nil {
 				fatal(err)
 			}
 			return
 		case "config":
-			if err := showConfig(os.Args[2:]); err != nil {
+			if err := showConfig(args[1:]); err != nil {
 				fatal(err)
 			}
 			return
@@ -87,7 +100,6 @@ func main() {
 	fs.BoolVar(&noReload, "no-reload", false, "")
 
 	// Allow flags before and after the positional argument.
-	args := os.Args[1:]
 	var positional []string
 	for {
 		_ = fs.Parse(args)
@@ -115,25 +127,29 @@ func main() {
 		root, indexFile = filepath.Dir(target), target
 	}
 
-	cfg, _, err := config.Load(root)
+	cfg, src, err := config.Load(root)
 	if err != nil {
 		fatal(err)
 	}
 	// Flags win over everything else, but only when given explicitly.
 	fs.Visit(func(f *flag.Flag) {
+		flagSrc := "--" + f.Name
+		if len(f.Name) == 1 {
+			flagSrc = "-" + f.Name
+		}
 		switch f.Name {
 		case "port", "p":
-			cfg.Port = port
+			cfg.Port, src["port"] = port, flagSrc
 		case "host":
-			cfg.Host = host
+			cfg.Host, src["host"] = host, flagSrc
 		case "ext", "e":
-			cfg.Ext = config.SplitExts(ext)
+			cfg.Ext, src["ext"] = config.SplitExts(ext), flagSrc
 		case "index":
-			cfg.Index = true
+			cfg.Index, src["index"] = true, flagSrc
 		case "no-index":
-			cfg.Index = false
+			cfg.Index, src["index"] = false, flagSrc
 		case "no-reload":
-			cfg.Reload = false
+			cfg.Reload, src["reload"] = false, flagSrc
 		}
 	})
 
@@ -154,6 +170,9 @@ func main() {
 		fatal(err)
 	}
 	fmt.Printf("mds %s serving %s\n", version, target)
+	if active := activeSources(src); len(active) > 0 {
+		fmt.Printf("config: %s\n", strings.Join(active, ", "))
+	}
 	fmt.Println("listening on:")
 	for _, u := range listenURLs(ln.Addr().(*net.TCPAddr)) {
 		fmt.Println("  " + u)
@@ -161,6 +180,61 @@ func main() {
 	if err := http.Serve(ln, handler); err != nil {
 		fatal(err)
 	}
+}
+
+// warnCollision prints a hint when a subcommand name also exists as a path in
+// the current directory, since the subcommand always wins.
+func warnCollision(arg string) {
+	if !slices.Contains(commands, arg) {
+		return
+	}
+	if _, err := os.Stat(arg); err != nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "note: running the %q command; to serve ./%s run: mds ./%s\n", arg, arg, arg)
+}
+
+// activeSources returns the non-default configuration sources in precedence
+// order, e.g. ["~/.config/mds/config.toml", ".mds.toml", "MDS_HOST", "--port"].
+// Each source appears once, in a short display form.
+func activeSources(src config.Sources) []string {
+	rank := map[string]int{}
+	for _, k := range config.Keys {
+		s := src[k]
+		var name string
+		var r int
+		switch {
+		case s == "default":
+			continue
+		case strings.HasPrefix(s, "global "):
+			name, r = shortenHome(config.GlobalPath()), 1
+		case strings.HasPrefix(s, "local "):
+			name, r = config.LocalName, 2
+		case strings.HasPrefix(s, "env "):
+			name, r = strings.TrimPrefix(s, "env "), 3
+		default:
+			name, r = s, 4
+		}
+		rank[name] = r
+	}
+	names := make([]string, 0, len(rank))
+	for n := range rank {
+		names = append(names, n)
+	}
+	sort.SliceStable(names, func(i, j int) bool {
+		if rank[names[i]] != rank[names[j]] {
+			return rank[names[i]] < rank[names[j]]
+		}
+		return names[i] < names[j]
+	})
+	return names
+}
+
+func shortenHome(p string) string {
+	if home, err := os.UserHomeDir(); err == nil && strings.HasPrefix(p, home) {
+		return "~" + strings.TrimPrefix(p, home)
+	}
+	return p
 }
 
 // showConfig implements "mds config [directory]".

@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-15
+
+### Added
+- `mds serve <path>` as the explicit form of `mds <path>`, for paths that
+  share a name with a subcommand.
+- A note is printed when a subcommand name also exists as a file or directory.
+- Startup output lists the active configuration sources (config files,
+  environment variables, flags) when any non-default source is in effect.
+
 ## [0.5.0] - 2026-09-15
 
 ### Added

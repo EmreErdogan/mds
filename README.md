@@ -34,6 +34,8 @@ mds update
 
 ```
 mds [flags] <file.md | directory>
+mds serve [flags] <path>   Same thing; use when the path is named like a
+                           command, e.g. a directory called "config"
 
   -p, --port <n>       Port to listen on (default 8080)
       --host <addr>    Address to bind (default 0.0.0.0)
@@ -68,7 +70,13 @@ reload = true          # live reload
 index = true           # render README.md / index.md under listings
 ```
 
-`mds config [dir]` prints the effective values and the source of each.
+`mds config [dir]` prints the effective values and the source of each. When
+serving, the startup output also lists which sources are active, e.g.
+`config: ~/.config/mds/config.toml, .mds.toml, MDS_HOST, --port`.
+
+Subcommands take precedence over paths: `mds config` runs the command even if
+a `config` directory exists. mds prints a note in that case; use `mds ./config`
+or `mds serve config` to serve it.
 
 - By default mds binds to all interfaces so other devices on your network
   (a phone, a Tailscale peer) can open it. Every reachable URL is printed at
