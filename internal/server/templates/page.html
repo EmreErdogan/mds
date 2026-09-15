@@ -46,5 +46,17 @@ input[type=checkbox]{margin-right:.4em}
 <main>
 {{.Content}}
 </main>
+{{if .Reload}}<script>
+(function () {
+  var wasDown = false;
+  function connect() {
+    var es = new EventSource("/_mds/events?path=" + encodeURIComponent(location.pathname));
+    es.addEventListener("reload", function () { location.reload(); });
+    es.onopen = function () { if (wasDown) location.reload(); };
+    es.onerror = function () { wasDown = true; };
+  }
+  connect();
+})();
+</script>{{end}}
 </body>
 </html>

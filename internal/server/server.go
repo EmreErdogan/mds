@@ -13,9 +13,14 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/EmreErdogan/mds/internal/render"
+	"github.com/EmreErdogan/mds/internal/watch"
 )
+
+// eventsPath is the reserved URL for the live-reload event stream.
+const eventsPath = "/_mds/events"
 
 //go:embed templates/*
 var templateFS embed.FS
@@ -32,6 +37,9 @@ type Options struct {
 	// Exts restricts served files to these extensions (lowercase, no dot).
 	// Empty means all files are served.
 	Exts []string
+	// Reload enables live reload: pages subscribe to changes of the file or
+	// directory they show and reload themselves.
+	Reload bool
 }
 
 // Server is an http.Handler serving a directory or a single markdown file.
@@ -39,6 +47,7 @@ type Server struct {
 	root  string
 	index string
 	exts  map[string]bool
+	hub   *watch.Hub // nil when live reload is off
 }
 
 // New creates a Server from opts.
@@ -48,6 +57,13 @@ func New(opts Options) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{root: root, index: opts.Index}
+	if opts.Reload {
+		hub, err := watch.New()
+		if err != nil {
+			return nil, err
+		}
+		s.hub = hub
+	}
 	if len(opts.Exts) > 0 {
 		s.exts = make(map[string]bool, len(opts.Exts))
 		for _, e := range opts.Exts {
@@ -74,6 +90,15 @@ type page struct {
 	Crumbs  []crumb
 	Content template.HTML
 	RawURL  string
+	Reload  bool
+}
+
+// Close releases resources held by the Server.
+func (s *Server) Close() error {
+	if s.hub != nil {
+		return s.hub.Close()
+	}
+	return nil
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +110,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	urlPath := path.Clean("/" + r.URL.Path)
 	if hasHiddenSegment(urlPath) {
 		http.NotFound(w, r)
+		return
+	}
+
+	if urlPath == eventsPath {
+		s.serveEvents(w, r)
 		return
 	}
 
@@ -212,7 +242,72 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 	})
 }
 
+// serveEvents streams a server-sent "reload" event whenever the file or
+// directory behind the "path" query parameter changes.
+func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
+	if s.hub == nil {
+		http.NotFound(w, r)
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	target := s.resolve(r.URL.Query().Get("path"))
+	if target == "" {
+		http.NotFound(w, r)
+		return
+	}
+	ch, cancel := s.hub.Subscribe(target)
+	defer cancel()
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+	fmt.Fprint(w, ": connected\n\n")
+	flusher.Flush()
+
+	keepalive := time.NewTicker(30 * time.Second)
+	defer keepalive.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ch:
+			// Give editors a moment to finish writing before the reload.
+			time.Sleep(50 * time.Millisecond)
+			fmt.Fprint(w, "event: reload\ndata: 1\n\n")
+			flusher.Flush()
+			return
+		case <-keepalive.C:
+			fmt.Fprint(w, ": keepalive\n\n")
+			flusher.Flush()
+		}
+	}
+}
+
+// resolve maps a URL path to the filesystem path it is served from, or ""
+// if the URL is not something this server would serve.
+func (s *Server) resolve(urlPath string) string {
+	urlPath = path.Clean("/" + urlPath)
+	if hasHiddenSegment(urlPath) {
+		return ""
+	}
+	if s.index != "" {
+		if urlPath == "/" {
+			return s.index
+		}
+	}
+	fsPath := filepath.Join(s.root, filepath.FromSlash(urlPath))
+	if _, err := os.Stat(fsPath); err != nil {
+		return ""
+	}
+	return fsPath
+}
+
 func (s *Server) render(w http.ResponseWriter, p page) {
+	p.Reload = s.hub != nil
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "page.html", p); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

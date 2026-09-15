@@ -38,6 +38,7 @@ mds [flags] <file.md | directory>
   -p, --port <n>       Port to listen on (default 8080)
       --host <addr>    Address to bind (default 0.0.0.0)
   -e, --ext <list>     Comma-separated extensions to serve in directory mode
+      --no-reload      Disable live reload
   -h, --help           Show help
 
 mds update [--force]   Update to the latest release
@@ -51,6 +52,8 @@ mds version            Print the version
   them. Put `export MDS_HOST=127.0.0.1` in your shell rc to stay local-only.
 - In directory mode, markdown files are rendered and everything else is served
   as-is. Hidden files (dot-prefixed) are never served.
+- Pages reload automatically when the file you are viewing (or the directory
+  listing) changes on disk. `--no-reload` turns this off.
 - Append `?raw` to any markdown URL to see the source.
 - In single-file mode the file is served at `/`; images and other assets next
   to it resolve normally.

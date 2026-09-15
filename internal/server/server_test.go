@@ -1,11 +1,14 @@
 package server
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testRoot(t *testing.T) string {
@@ -92,5 +95,67 @@ func TestFileMode(t *testing.T) {
 	}
 	if code, _ := get(t, s, "/notes.txt"); code != 200 {
 		t.Errorf("/notes.txt: got %d, want 200 (assets next to the file)", code)
+	}
+}
+
+func TestLiveReloadEvents(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "doc.md")
+	if err := os.WriteFile(file, []byte("# one"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(Options{Root: dir, Reload: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	if _, body := get(t, s, "/doc.md"); !strings.Contains(body, "/_mds/events") {
+		t.Error("page missing reload script")
+	}
+
+	srv := httptest.NewServer(s)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/_mds/events?path=/doc.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("content-type %q", ct)
+	}
+	// Read the initial comment so the subscription is established.
+	buf := make([]byte, 64)
+	if _, err := resp.Body.Read(buf); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte("# two"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(resp.Body)
+		done <- string(b)
+	}()
+	select {
+	case body := <-done:
+		if !strings.Contains(body, "event: reload") {
+			t.Errorf("no reload event, got %q", body)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for reload event")
+	}
+}
+
+func TestNoReload(t *testing.T) {
+	s, err := New(Options{Root: testRoot(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, body := get(t, s, "/README.md"); strings.Contains(body, "/_mds/events") {
+		t.Error("reload script present when disabled")
+	}
+	if code, _ := get(t, s, "/_mds/events?path=/README.md"); code != 404 {
+		t.Errorf("events endpoint: got %d, want 404", code)
 	}
 }

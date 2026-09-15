@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Live reload: pages reload automatically when the markdown file or the
+  listed directory changes. Only watched paths are subscribed, so serving a
+  large tree stays cheap. Disable with `--no-reload`.
+
 ## [0.2.0] - 2026-09-15
 
 ### Changed

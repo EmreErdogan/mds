@@ -30,6 +30,7 @@ Flags:
       --host <addr>     Address to bind (default 0.0.0.0, env MDS_HOST)
   -e, --ext <list>      Comma-separated file extensions to serve in directory
                         mode, e.g. "md,txt,png". Default: all files.
+      --no-reload       Disable live reload
   -h, --help            Show this help
 
 Examples:
@@ -79,6 +80,8 @@ func main() {
 		port = n
 	}
 	var ext string
+	var noReload bool
+	fs.BoolVar(&noReload, "no-reload", false, "disable live reload")
 	fs.IntVar(&port, "port", port, "port to listen on")
 	fs.IntVar(&port, "p", port, "port to listen on")
 	fs.StringVar(&host, "host", host, "address to bind")
@@ -110,7 +113,7 @@ func main() {
 		fatal(err)
 	}
 
-	opts := server.Options{Exts: splitExts(ext)}
+	opts := server.Options{Exts: splitExts(ext), Reload: !noReload}
 	if info.IsDir() {
 		opts.Root = target
 	} else {
@@ -121,6 +124,7 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
+	defer handler.Close()
 
 	addr := net.JoinHostPort(host, fmt.Sprint(port))
 	ln, err := net.Listen("tcp", addr)
