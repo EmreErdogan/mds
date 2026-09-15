@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Default bind address is now `0.0.0.0` so other devices on the network can
+  reach the server. Use `--host 127.0.0.1` for local-only.
+- Startup output lists every reachable URL with its interface name.
+
+### Added
+- `MDS_HOST` and `MDS_PORT` environment variables; flags take precedence.
+
 ## [0.1.0] - 2026-09-15
 
 ### Added

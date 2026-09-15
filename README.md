@@ -36,7 +36,7 @@ mds update
 mds [flags] <file.md | directory>
 
   -p, --port <n>       Port to listen on (default 8080)
-      --host <addr>    Address to bind (default 127.0.0.1)
+      --host <addr>    Address to bind (default 0.0.0.0)
   -e, --ext <list>     Comma-separated extensions to serve in directory mode
   -h, --help           Show help
 
@@ -44,6 +44,11 @@ mds update [--force]   Update to the latest release
 mds version            Print the version
 ```
 
+- By default mds binds to all interfaces so other devices on your network
+  (a phone, a Tailscale peer) can open it. Every reachable URL is printed at
+  startup. On untrusted networks bind locally with `--host 127.0.0.1`.
+- Environment variables `MDS_HOST` and `MDS_PORT` set defaults; flags override
+  them. Put `export MDS_HOST=127.0.0.1` in your shell rc to stay local-only.
 - In directory mode, markdown files are rendered and everything else is served
   as-is. Hidden files (dot-prefixed) are never served.
 - Append `?raw` to any markdown URL to see the source.
