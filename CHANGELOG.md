@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-15
+
 ### Added
 - Live reload: pages reload automatically when the markdown file or the
   listed directory changes. Only watched paths are subscribed, so serving a
