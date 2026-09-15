@@ -159,3 +159,26 @@ func TestNoReload(t *testing.T) {
 		t.Errorf("events endpoint: got %d, want 404", code)
 	}
 }
+
+func TestDirIndex(t *testing.T) {
+	root := testRoot(t)
+	s, err := New(Options{Root: root, DirIndex: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, body := get(t, s, "/")
+	if !strings.Contains(body, `class="dir-index"`) || !strings.Contains(body, "<h1 id=\"test-document\">") {
+		t.Error("README not rendered under listing")
+	}
+	if _, body := get(t, s, "/sub/"); strings.Contains(body, `class="dir-index"`) {
+		t.Error("dir without README rendered an index")
+	}
+	off, _ := New(Options{Root: root})
+	if _, body := get(t, off, "/"); strings.Contains(body, `class="dir-index"`) {
+		t.Error("index rendered while disabled")
+	}
+	filtered, _ := New(Options{Root: root, DirIndex: true, Exts: []string{"txt"}})
+	if _, body := get(t, filtered, "/"); strings.Contains(body, `class="dir-index"`) {
+		t.Error("index rendered although md is filtered out")
+	}
+}

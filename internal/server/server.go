@@ -40,14 +40,17 @@ type Options struct {
 	// Reload enables live reload: pages subscribe to changes of the file or
 	// directory they show and reload themselves.
 	Reload bool
+	// DirIndex renders README.md or index.md below directory listings.
+	DirIndex bool
 }
 
 // Server is an http.Handler serving a directory or a single markdown file.
 type Server struct {
-	root  string
-	index string
-	exts  map[string]bool
-	hub   *watch.Hub // nil when live reload is off
+	root     string
+	index    string
+	exts     map[string]bool
+	hub      *watch.Hub // nil when live reload is off
+	dirIndex bool
 }
 
 // New creates a Server from opts.
@@ -56,7 +59,7 @@ func New(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{root: root, index: opts.Index}
+	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex}
 	if opts.Reload {
 		hub, err := watch.New()
 		if err != nil {
@@ -232,6 +235,16 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if s.dirIndex {
+		if name := s.indexFile(fsPath); name != "" {
+			if src, err := os.ReadFile(filepath.Join(fsPath, name)); err == nil {
+				if res, err := render.Markdown(src); err == nil {
+					fmt.Fprintf(&buf, `<section class="dir-index"><header><a href="%s">%s</a></header>%s</section>`,
+						template.HTMLEscapeString(path.Join(urlPath, name)), template.HTMLEscapeString(name), res.HTML)
+				}
+			}
+		}
+	}
 	title := path.Base(urlPath)
 	if urlPath == "/" {
 		title = filepath.Base(s.root)
@@ -317,6 +330,20 @@ func (s *Server) render(w http.ResponseWriter, p page) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write(buf.Bytes())
+}
+
+// indexFile returns the name of the first README.md / index.md style file in
+// dir that would be served, or "".
+func (s *Server) indexFile(dir string) string {
+	for _, name := range []string{"README.md", "readme.md", "Readme.md", "index.md", "INDEX.md"} {
+		if !s.allowed(name) {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(dir, name)); err == nil && !info.IsDir() {
+			return name
+		}
+	}
+	return ""
 }
 
 // crumbs builds breadcrumb links for urlPath. When withRoot is false only the

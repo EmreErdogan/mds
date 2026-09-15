@@ -38,18 +38,45 @@ mds [flags] <file.md | directory>
   -p, --port <n>       Port to listen on (default 8080)
       --host <addr>    Address to bind (default 0.0.0.0)
   -e, --ext <list>     Comma-separated extensions to serve in directory mode
+      --index          Render README.md / index.md under directory listings
+      --no-index       Disable --index
       --no-reload      Disable live reload
   -h, --help           Show help
 
+mds config [dir]       Show effective settings and where each comes from
 mds update [--force]   Update to the latest release
 mds version            Print the version
 ```
 
+## Configuration
+
+Settings are resolved in this order, later wins:
+
+1. built-in defaults
+2. global config: `~/.config/mds/config.toml` (or `$XDG_CONFIG_HOME/mds/config.toml`)
+3. local config: `.mds.toml` in the served directory
+4. environment: `MDS_HOST`, `MDS_PORT`, `MDS_EXT`, `MDS_RELOAD`, `MDS_INDEX`
+5. command-line flags
+
+All keys are optional:
+
+```toml
+host = "127.0.0.1"     # bind address
+port = 3000
+ext = ["md", "png"]    # only serve these extensions in directory mode
+reload = true          # live reload
+index = true           # render README.md / index.md under listings
+```
+
+`mds config [dir]` prints the effective values and the source of each.
+
 - By default mds binds to all interfaces so other devices on your network
   (a phone, a Tailscale peer) can open it. Every reachable URL is printed at
   startup. On untrusted networks bind locally with `--host 127.0.0.1`.
-- Environment variables `MDS_HOST` and `MDS_PORT` set defaults; flags override
-  them. Put `export MDS_HOST=127.0.0.1` in your shell rc to stay local-only.
+- To stay local-only by default, put `host = "127.0.0.1"` in the global config
+  or `export MDS_HOST=127.0.0.1` in your shell rc.
+- With `index = true` (or `--index`), a directory that contains `README.md` or
+  `index.md` shows it rendered below the listing, like GitHub.
 - In directory mode, markdown files are rendered and everything else is served
   as-is. Hidden files (dot-prefixed) are never served.
 - Fenced code blocks are syntax-highlighted; the palette follows the system

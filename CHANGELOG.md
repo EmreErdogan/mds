@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-15
+
+### Added
+- Configuration files: global `~/.config/mds/config.toml` and per-directory
+  `.mds.toml`. Precedence: defaults < global < local < environment < flags.
+- `mds config [dir]` shows effective settings and where each one comes from.
+- `index` setting / `--index` flag: render `README.md` or `index.md` below
+  directory listings.
+- `MDS_EXT`, `MDS_RELOAD` and `MDS_INDEX` environment variables.
+
 ## [0.4.0] - 2026-09-15
 
 ### Added
