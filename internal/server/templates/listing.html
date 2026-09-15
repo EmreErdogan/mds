@@ -1,0 +1,4 @@
+<ul class="listing">
+{{if .Parent}}<li><a href="{{.Parent}}">../</a></li>{{end}}
+{{range .Entries}}<li><a href="{{.URL}}">{{.Name}}</a>{{if not .IsDir}}<span class="size">{{.Size}}</span>{{end}}</li>
+{{end}}</ul>

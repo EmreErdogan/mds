@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+nav{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1.25rem;border-bottom:1px solid var(--border);font-size:.9rem;color:var(--muted)}
+nav a{color:var(--link);text-decoration:none}nav a:hover{text-decoration:underline}
+nav .sep{margin:0 .35rem}
+main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem}
+h1,h2,h3,h4,h5,h6{margin:1.6em 0 .6em;line-height:1.25;font-weight:600}
+h1{font-size:2em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
+h2{font-size:1.5em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
+h1:first-child{margin-top:0}
+a{color:var(--link)}
+p,ul,ol,blockquote,pre,table{margin:0 0 1em}
+li+li{margin-top:.25em}
+code,pre{font:.875em/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+code{background:var(--code-bg);padding:.15em .35em;border-radius:4px}
+pre{background:var(--code-bg);padding:1em;border-radius:6px;overflow:auto}
+pre code{background:none;padding:0;font-size:1em}
+blockquote{border-left:4px solid var(--border);color:var(--quote);padding:0 1em}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%}
+th,td{border:1px solid var(--border);padding:.4em .8em}
+th{font-weight:600;background:var(--code-bg)}
+img{max-width:100%}
+hr{border:0;border-top:1px solid var(--border);margin:2em 0}
+input[type=checkbox]{margin-right:.4em}
+.listing{list-style:none;padding:0;margin:0;border:1px solid var(--border);border-radius:6px}
+.listing li{display:flex;justify-content:space-between;padding:.5rem .9rem;border-top:1px solid var(--border)}
+.listing li:first-child{border-top:0}
+.listing a{text-decoration:none}.listing a:hover{text-decoration:underline}
+.listing .size{color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<nav>
+  <div>{{range $i, $c := .Crumbs}}{{if $i}}<span class="sep">/</span>{{end}}{{if $c.URL}}<a href="{{$c.URL}}">{{$c.Name}}</a>{{else}}<span>{{$c.Name}}</span>{{end}}{{end}}</div>
+  {{if .RawURL}}<a href="{{.RawURL}}">raw</a>{{end}}
+</nav>
+<main>
+{{.Content}}
+</main>
+</body>
+</html>
