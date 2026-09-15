@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-15
+
 ### Changed
 - Default bind address is now `0.0.0.0` so other devices on the network can
   reach the server. Use `--host 127.0.0.1` for local-only.
