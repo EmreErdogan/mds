@@ -76,3 +76,43 @@ func TestPrecedence(t *testing.T) {
 		t.Errorf("expected rename hint for ext, got %v", err)
 	}
 }
+
+func TestInitTemplateIsValidAndComplete(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "sub", "config.toml")
+	if err := Init(path, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := Init(path, false); err == nil {
+		t.Error("expected refusal to overwrite")
+	}
+	if err := Init(path, true); err != nil {
+		t.Errorf("force overwrite failed: %v", err)
+	}
+	// Every key appears in the template.
+	body, _ := os.ReadFile(path)
+	for _, k := range Keys {
+		if !strings.Contains(string(body), "\n#"+k+" = ") {
+			t.Errorf("template missing key %s", k)
+		}
+	}
+	// Uncommenting every setting yields a file that loads without error and
+	// reproduces the defaults.
+	local := t.TempDir()
+	var lines []string
+	for _, line := range strings.Split(string(body), "\n") {
+		if strings.HasPrefix(line, "#") && strings.Contains(line, " = ") && !strings.HasPrefix(line, "# ") {
+			line = strings.TrimPrefix(line, "#")
+		}
+		lines = append(lines, line)
+	}
+	os.WriteFile(filepath.Join(local, LocalName), []byte(strings.Join(lines, "\n")), 0o644)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, _, err := Load(local)
+	if err != nil {
+		t.Fatalf("uncommented template does not load: %v", err)
+	}
+	if cfg.Port != 8080 || cfg.Host != "0.0.0.0" || !cfg.Reload || !cfg.TOC {
+		t.Errorf("template defaults differ: %+v", cfg)
+	}
+}

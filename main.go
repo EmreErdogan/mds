@@ -31,6 +31,8 @@ Usage:
                             command (e.g. a directory called "config")
   mds config [directory]    Show effective settings and where they come from
                             (defaults to the current directory)
+  mds config init           Write a commented global config file
+                            (--local writes ./.mds.toml, --force overwrites)
   mds update                Update mds to the latest release
   mds version               Print the version
 
@@ -85,7 +87,13 @@ func main() {
 			}
 			return
 		case "config":
-			if err := showConfig(args[1:]); err != nil {
+			var err error
+			if len(args) > 1 && args[1] == "init" {
+				err = initConfig(args[2:])
+			} else {
+				err = showConfig(args[1:])
+			}
+			if err != nil {
 				fatal(err)
 			}
 			return
@@ -300,6 +308,27 @@ func shortenHome(p string) string {
 		return "~" + strings.TrimPrefix(p, home)
 	}
 	return p
+}
+
+// initConfig implements "mds config init [--local] [--force]".
+func initConfig(args []string) error {
+	fs := flag.NewFlagSet("mds config init", flag.ExitOnError)
+	local := fs.Bool("local", false, "write .mds.toml in the current directory")
+	force := fs.Bool("force", false, "overwrite an existing file")
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: mds config init [--local] [--force]")
+		fs.PrintDefaults()
+	}
+	_ = fs.Parse(args)
+	path := config.GlobalPath()
+	if *local {
+		path = config.LocalPath(".")
+	}
+	if err := config.Init(path, *force); err != nil {
+		return err
+	}
+	fmt.Println("wrote", path)
+	return nil
 }
 
 // showConfig implements "mds config [directory]".

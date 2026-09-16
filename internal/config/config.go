@@ -257,3 +257,50 @@ func Format(cfg Config, key string) string {
 	}
 	return ""
 }
+
+// Template is a commented config file with every setting at its default.
+const Template = `# mds configuration
+# Every setting is optional. Uncomment a line to change it.
+# Precedence: defaults < this file < <dir>/.mds.toml < environment < flags
+
+# Address to bind. Use "127.0.0.1" to stay local-only.
+#host = "0.0.0.0"
+
+# Port to listen on.
+#port = 8080
+
+# Only serve these file types in directory mode (empty = all files).
+#types = ["md", "png"]
+
+# Glob patterns for file and directory names to hide and never serve.
+#exclude = [".git", "node_modules"]
+
+# Serve dot-prefixed files and directories too.
+#hidden = false
+
+# Reload pages in the browser when files change.
+#reload = true
+
+# Render README.md / index.md below directory listings.
+#index = false
+
+# Open the local URL in a browser after starting.
+#open = false
+
+# Show a table of contents on rendered pages.
+#toc = true
+`
+
+// Init writes Template to path. It refuses to overwrite an existing file
+// unless force is set.
+func Init(path string, force bool) error {
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("%s already exists (use --force to overwrite)", path)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(Template), 0o644)
+}

@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-16
+
+### Added
+- `mds config init` writes a commented config file with every setting at its
+  default to `~/.config/mds/config.toml`. `--local` writes `./.mds.toml`,
+  `--force` overwrites an existing file.
+
 ## [0.11.0] - 2026-09-16
 
 ### Added

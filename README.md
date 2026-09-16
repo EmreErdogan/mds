@@ -51,6 +51,7 @@ mds serve [flags] <path>   Same thing; use when the path is named like a
   -h, --help           Show help
 
 mds config [dir]       Show effective settings and where each comes from
+mds config init        Write a commented global config (--local, --force)
 mds update [--force]   Update to the latest release
 mds version            Print the version
 ```
@@ -66,7 +67,8 @@ Settings are resolved in this order, later wins:
    `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`, `MDS_TOC`
 5. command-line flags
 
-All keys are optional:
+`mds config init` creates the global file with every key commented out. All
+keys are optional:
 
 ```toml
 host = "127.0.0.1"                 # bind address
