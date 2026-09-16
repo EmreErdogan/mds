@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-16
+
+### Added
+- YAML front matter is parsed and hidden from the rendered page. A `title`
+  field becomes the page title, taking precedence over the first heading.
+
 ## [0.7.0] - 2026-09-16
 
 ### Changed

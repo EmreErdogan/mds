@@ -99,6 +99,8 @@ or `mds serve config` to serve it.
   glob syntax and match a single file or directory name.
 - `--open` opens `http://127.0.0.1:<port>/` in the local browser. Over SSH or
   without a display it prints a note and keeps serving.
+- YAML front matter (`---` block at the top) is hidden; its `title` field, if
+  present, becomes the page title.
 - Fenced code blocks are syntax-highlighted; the palette follows the system
   light/dark preference.
 - Pages reload automatically when the file you are viewing (or the directory

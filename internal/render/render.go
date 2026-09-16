@@ -3,6 +3,7 @@ package render
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -25,6 +27,7 @@ const (
 var md = goldmark.New(
 	goldmark.WithExtensions(
 		extension.GFM,
+		meta.Meta, // YAML front matter: parsed and stripped from the output
 		highlighting.NewHighlighting(
 			highlighting.WithFormatOptions(
 				chromahtml.WithClasses(true),
@@ -39,17 +42,26 @@ var md = goldmark.New(
 // Result is a rendered markdown document.
 type Result struct {
 	HTML  []byte
-	Title string // text of the first level-1 heading, or "" if none
+	Title string         // front matter "title", else the first H1, else ""
+	Meta  map[string]any // parsed YAML front matter, nil if none
 }
 
 // Markdown renders GitHub Flavored Markdown to HTML.
 func Markdown(src []byte) (Result, error) {
-	doc := md.Parser().Parse(text.NewReader(src))
+	ctx := parser.NewContext()
+	doc := md.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
 	var buf bytes.Buffer
 	if err := md.Renderer().Render(&buf, src, doc); err != nil {
 		return Result{}, err
 	}
-	return Result{HTML: buf.Bytes(), Title: firstH1(doc, src)}, nil
+	res := Result{HTML: buf.Bytes(), Meta: meta.Get(ctx)}
+	if t, ok := res.Meta["title"]; ok && t != nil {
+		res.Title = strings.TrimSpace(fmt.Sprint(t))
+	}
+	if res.Title == "" {
+		res.Title = firstH1(doc, src)
+	}
+	return res, nil
 }
 
 func firstH1(doc ast.Node, src []byte) string {
