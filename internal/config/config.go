@@ -24,17 +24,18 @@ type Config struct {
 	Reload  bool     // live reload
 	Index   bool     // render README.md / index.md under directory listings
 	Open    bool     // open a browser after the server starts
+	TOC     bool     // show a table of contents on rendered pages
 }
 
 // Keys lists setting names in display order.
-var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open"}
+var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open", "toc"}
 
 // Sources records where each setting's effective value came from.
 type Sources map[string]string
 
 // Defaults returns the built-in configuration.
 func Defaults() Config {
-	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true}
+	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true, TOC: true}
 }
 
 // GlobalPath returns the global config file location:
@@ -67,6 +68,7 @@ type file struct {
 	Reload  *bool     `toml:"reload"`
 	Index   *bool     `toml:"index"`
 	Open    *bool     `toml:"open"`
+	TOC     *bool     `toml:"toc"`
 }
 
 // Load resolves the configuration for serving localDir.
@@ -138,6 +140,9 @@ func applyFile(cfg *Config, src Sources, label, path string) error {
 	if f.Open != nil {
 		cfg.Open, src["open"] = *f.Open, where
 	}
+	if f.TOC != nil {
+		cfg.TOC, src["toc"] = *f.TOC, where
+	}
 	return nil
 }
 
@@ -167,6 +172,7 @@ func applyEnv(cfg *Config, src Sources) error {
 		{"MDS_RELOAD", &cfg.Reload, "reload"},
 		{"MDS_INDEX", &cfg.Index, "index"},
 		{"MDS_OPEN", &cfg.Open, "open"},
+		{"MDS_TOC", &cfg.TOC, "toc"},
 	} {
 		v, ok := os.LookupEnv(e.name)
 		if !ok || v == "" {
@@ -246,6 +252,8 @@ func Format(cfg Config, key string) string {
 		return strconv.FormatBool(cfg.Index)
 	case "open":
 		return strconv.FormatBool(cfg.Open)
+	case "toc":
+		return strconv.FormatBool(cfg.TOC)
 	}
 	return ""
 }

@@ -12,7 +12,7 @@ func TestPrecedence(t *testing.T) {
 	local := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", global)
 	t.Setenv("HOME", t.TempDir())
-	for _, v := range []string{"MDS_HOST", "MDS_PORT", "MDS_TYPES", "MDS_EXCLUDE", "MDS_HIDDEN", "MDS_RELOAD", "MDS_INDEX", "MDS_OPEN"} {
+	for _, v := range []string{"MDS_HOST", "MDS_PORT", "MDS_TYPES", "MDS_EXCLUDE", "MDS_HIDDEN", "MDS_RELOAD", "MDS_INDEX", "MDS_OPEN", "MDS_TOC"} {
 		t.Setenv(v, "")
 		os.Unsetenv(v)
 	}
@@ -22,7 +22,7 @@ func TestPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Host != "0.0.0.0" || cfg.Port != 8080 || !cfg.Reload || cfg.Index || cfg.Hidden || cfg.Open || src["host"] != "default" {
+	if cfg.Host != "0.0.0.0" || cfg.Port != 8080 || !cfg.Reload || cfg.Index || cfg.Hidden || cfg.Open || !cfg.TOC || src["host"] != "default" {
 		t.Errorf("defaults wrong: %+v %v", cfg, src)
 	}
 	if len(cfg.Exclude) != 1 || cfg.Exclude[0] != ".git" {

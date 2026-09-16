@@ -48,6 +48,8 @@ type Options struct {
 	Reload bool
 	// DirIndex renders README.md or index.md below directory listings.
 	DirIndex bool
+	// TOC shows a table of contents on rendered markdown pages.
+	TOC bool
 }
 
 // Server is an http.Handler serving a directory or a single markdown file.
@@ -59,6 +61,7 @@ type Server struct {
 	hidden   bool
 	hub      *watch.Hub // nil when live reload is off
 	dirIndex bool
+	toc      bool
 }
 
 // New creates a Server from opts.
@@ -67,7 +70,7 @@ func New(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden}
+	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden, toc: opts.TOC}
 	for _, pat := range opts.Exclude {
 		if _, err := path.Match(pat, ""); err != nil {
 			return nil, fmt.Errorf("invalid exclude pattern %q: %w", pat, err)
@@ -109,7 +112,32 @@ type page struct {
 	RawURL       string
 	Reload       bool
 	Mermaid      bool // page has mermaid code blocks; load the renderer
+	TOC          []tocEntry
 	HighlightCSS template.CSS
+}
+
+type tocEntry struct {
+	Level int // 2..4, used for indentation
+	ID    string
+	Text  string
+}
+
+// tocMinEntries is the smallest table of contents worth showing.
+const tocMinEntries = 3
+
+// buildTOC keeps h2–h4 headings that have anchors. Returns nil if too short.
+func buildTOC(hs []render.Heading) []tocEntry {
+	var out []tocEntry
+	for _, h := range hs {
+		if h.Level < 2 || h.Level > 4 || h.ID == "" || h.Text == "" {
+			continue
+		}
+		out = append(out, tocEntry{Level: h.Level, ID: h.ID, Text: h.Text})
+	}
+	if len(out) < tocMinEntries {
+		return nil
+	}
+	return out
 }
 
 // Close releases resources held by the Server.
@@ -225,12 +253,17 @@ func (s *Server) serveMarkdown(w http.ResponseWriter, fsPath, urlPath, rawURL st
 	if title == "" {
 		title = filepath.Base(fsPath)
 	}
+	var toc []tocEntry
+	if s.toc {
+		toc = buildTOC(res.Headings)
+	}
 	s.render(w, page{
 		Title:   title,
 		Crumbs:  crumbs(urlPath, s.index == ""),
 		Content: template.HTML(res.HTML),
 		RawURL:  rawURL,
 		Mermaid: bytes.Contains(res.HTML, []byte(`class="language-mermaid"`)),
+		TOC:     toc,
 	})
 }
 

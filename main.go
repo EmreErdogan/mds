@@ -39,6 +39,7 @@ Server:
       --host <addr>     Address to bind (default 0.0.0.0)
       --open            Open the page in a browser after starting
       --no-reload       Disable live reload
+      --no-toc          Hide the table of contents on rendered pages
 
 Files (directory mode):
   -t, --types <list>    Only serve these file types, e.g. "md,txt,png".
@@ -54,7 +55,7 @@ Files (directory mode):
 Settings are resolved in this order, later wins:
   defaults < ~/.config/mds/config.toml < <dir>/.mds.toml < environment < flags
 Environment: MDS_HOST, MDS_PORT, MDS_TYPES, MDS_EXCLUDE, MDS_HIDDEN,
-             MDS_RELOAD, MDS_INDEX, MDS_OPEN
+             MDS_RELOAD, MDS_INDEX, MDS_OPEN, MDS_TOC
 
 Examples:
   mds README.md
@@ -100,7 +101,9 @@ func main() {
 		port                                   int
 		host, types, exclude                   string
 		index, noIndex, noReload, hidden, open bool
+		noTOC                                  bool
 	)
+	fs.BoolVar(&noTOC, "no-toc", false, "")
 	fs.IntVar(&port, "port", 0, "")
 	fs.IntVar(&port, "p", 0, "")
 	fs.StringVar(&host, "host", "", "")
@@ -171,6 +174,8 @@ func main() {
 			cfg.Index, src["index"] = false, flagSrc
 		case "no-reload":
 			cfg.Reload, src["reload"] = false, flagSrc
+		case "no-toc":
+			cfg.TOC, src["toc"] = false, flagSrc
 		}
 	})
 
@@ -182,6 +187,7 @@ func main() {
 		Hidden:   cfg.Hidden,
 		Reload:   cfg.Reload,
 		DirIndex: cfg.Index,
+		TOC:      cfg.TOC,
 	})
 	if err != nil {
 		fatal(err)

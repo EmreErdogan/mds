@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-16
+
+### Added
+- Table of contents built from h2–h4 headings, shown as a sticky sidebar on
+  wide screens and a collapsible block at the top on narrow ones. Appears on
+  documents with at least three headings; the current section is highlighted.
+  Disable with `--no-toc`, `toc = false` or `MDS_TOC=false`.
+
 ## [0.9.0] - 2026-09-16
 
 ### Added

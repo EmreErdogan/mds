@@ -42,6 +42,7 @@ mds serve [flags] <path>   Same thing; use when the path is named like a
       --host <addr>    Address to bind (default 0.0.0.0)
       --open           Open the page in a browser after starting
       --no-reload      Disable live reload
+      --no-toc         Hide the table of contents
   -t, --types <list>   Only serve these file types, e.g. "md,txt,png"
   -x, --exclude <list> Glob patterns for names to skip (default ".git")
       --hidden         Also serve dot-prefixed files and directories
@@ -62,7 +63,7 @@ Settings are resolved in this order, later wins:
 2. global config: `~/.config/mds/config.toml` (or `$XDG_CONFIG_HOME/mds/config.toml`)
 3. local config: `.mds.toml` in the served directory
 4. environment: `MDS_HOST`, `MDS_PORT`, `MDS_TYPES`, `MDS_EXCLUDE`,
-   `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`
+   `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`, `MDS_TOC`
 5. command-line flags
 
 All keys are optional:
@@ -76,6 +77,7 @@ hidden = false                     # serve dot-prefixed files too
 reload = true                      # live reload
 index = true                       # render README.md / index.md under listings
 open = false                       # open a browser after starting
+toc = true                         # table of contents on rendered pages
 ```
 
 `mds config [dir]` prints the effective values and the source of each. When
@@ -99,6 +101,8 @@ or `mds serve config` to serve it.
   glob syntax and match a single file or directory name.
 - `--open` opens `http://127.0.0.1:<port>/` in the local browser. Over SSH or
   without a display it prints a note and keeps serving.
+- Documents with three or more headings get a table of contents: a sidebar on
+  wide screens, a collapsible "Contents" block on narrow ones.
 - YAML front matter (`---` block at the top) is hidden; its `title` field, if
   present, becomes the page title.
 - ```mermaid blocks are rendered as diagrams (needs internet access in the

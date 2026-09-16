@@ -39,11 +39,19 @@ var md = goldmark.New(
 	goldmark.WithRendererOptions(html.WithUnsafe()),
 )
 
+// Heading is a document heading with its anchor id.
+type Heading struct {
+	Level int
+	ID    string
+	Text  string
+}
+
 // Result is a rendered markdown document.
 type Result struct {
-	HTML  []byte
-	Title string         // front matter "title", else the first H1, else ""
-	Meta  map[string]any // parsed YAML front matter, nil if none
+	HTML     []byte
+	Title    string         // front matter "title", else the first H1, else ""
+	Meta     map[string]any // parsed YAML front matter, nil if none
+	Headings []Heading      // all headings in document order
 }
 
 // Markdown renders GitHub Flavored Markdown to HTML.
@@ -54,7 +62,7 @@ func Markdown(src []byte) (Result, error) {
 	if err := md.Renderer().Render(&buf, src, doc); err != nil {
 		return Result{}, err
 	}
-	res := Result{HTML: buf.Bytes(), Meta: meta.Get(ctx)}
+	res := Result{HTML: buf.Bytes(), Meta: meta.Get(ctx), Headings: headings(doc, src)}
 	if t, ok := res.Meta["title"]; ok && t != nil {
 		res.Title = strings.TrimSpace(fmt.Sprint(t))
 	}
@@ -62,6 +70,23 @@ func Markdown(src []byte) (Result, error) {
 		res.Title = firstH1(doc, src)
 	}
 	return res, nil
+}
+
+func headings(doc ast.Node, src []byte) []Heading {
+	var out []Heading
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if h, ok := n.(*ast.Heading); ok {
+			id, _ := h.AttributeString("id")
+			idb, _ := id.([]byte)
+			out = append(out, Heading{Level: h.Level, ID: string(idb), Text: strings.TrimSpace(nodeText(h, src))})
+			return ast.WalkSkipChildren, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	return out
 }
 
 func firstH1(doc ast.Node, src []byte) string {

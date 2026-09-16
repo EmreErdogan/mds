@@ -16,7 +16,23 @@ body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,B
 nav{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1.25rem;border-bottom:1px solid var(--border);font-size:.9rem;color:var(--muted)}
 nav a{color:var(--link);text-decoration:none}nav a:hover{text-decoration:underline}
 nav .sep{margin:0 .35rem}
-main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem}
+main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem;min-width:0}
+.toc{font-size:.85rem;line-height:1.5}
+.toc ol{list-style:none;margin:0;padding:0}
+.toc li{margin:.15rem 0}
+.toc .l3{padding-left:.9rem}.toc .l4{padding-left:1.8rem}
+.toc a{color:var(--muted);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toc a:hover,.toc a.active{color:var(--link)}
+.toc summary{cursor:pointer;color:var(--muted);font-weight:600}
+.toc-top{margin:0 auto;max-width:56rem;padding:1.25rem 1.25rem 0}
+.toc-side{display:none}
+@media (min-width:1200px){
+  body.has-toc .toc-top{display:none}
+  body.has-toc .layout{display:grid;grid-template-columns:minmax(0,56rem) 14rem;justify-content:center;column-gap:2rem}
+  body.has-toc .layout>main{grid-column:1;max-width:none;margin:0}
+  .toc-side{display:block;grid-column:2;position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding:2rem 0}
+  .toc-side .title{color:var(--muted);font-weight:600;margin-bottom:.4rem}
+}
 h1,h2,h3,h4,h5,h6{margin:1.6em 0 .6em;line-height:1.25;font-weight:600}
 h1{font-size:2em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
 h2{font-size:1.5em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
@@ -46,14 +62,39 @@ pre.mermaid{background:none;text-align:center}
 .dir-index>header a{text-decoration:none;color:var(--fg);font-weight:600}
 </style>
 </head>
-<body>
+<body{{if .TOC}} class="has-toc"{{end}}>
 <nav>
   <div>{{range $i, $c := .Crumbs}}{{if $i}}<span class="sep">/</span>{{end}}{{if $c.URL}}<a href="{{$c.URL}}">{{$c.Name}}</a>{{else}}<span>{{$c.Name}}</span>{{end}}{{end}}</div>
   {{if .RawURL}}<a href="{{.RawURL}}">raw</a>{{end}}
 </nav>
+{{if .TOC}}<details class="toc toc-top"><summary>Contents</summary>{{template "toclist" .TOC}}</details>{{end}}
+<div class="layout">
 <main>
 {{.Content}}
 </main>
+{{if .TOC}}<aside class="toc toc-side"><div class="title">Contents</div>{{template "toclist" .TOC}}</aside>{{end}}
+</div>
+{{if .TOC}}<script>
+(function () {
+  var links = document.querySelectorAll(".toc-side a");
+  if (!links.length || !("IntersectionObserver" in window)) return;
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+  var current = null;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      if (current) current.classList.remove("active");
+      current = byId[e.target.id];
+      if (current) current.classList.add("active");
+    });
+  }, { rootMargin: "0px 0px -70% 0px" });
+  Object.keys(byId).forEach(function (id) {
+    var h = document.getElementById(id);
+    if (h) io.observe(h);
+  });
+})();
+</script>{{end}}
 {{if .Mermaid}}<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <script>
 (function () {
@@ -83,3 +124,4 @@ pre.mermaid{background:none;text-align:center}
 </script>{{end}}
 </body>
 </html>
+{{define "toclist"}}<ol>{{range .}}<li class="l{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}</ol>{{end}}

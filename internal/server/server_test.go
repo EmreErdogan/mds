@@ -240,3 +240,28 @@ func TestMermaidScriptOnlyWhenNeeded(t *testing.T) {
 		t.Error("mermaid script loaded on a page without diagrams")
 	}
 }
+
+func TestTOC(t *testing.T) {
+	dir := t.TempDir()
+	long := "# Title\n\n## One\n\ntext\n\n### One A\n\n## Two\n\n#### Deep\n\n##### Too deep\n"
+	os.WriteFile(filepath.Join(dir, "long.md"), []byte(long), 0o644)
+	os.WriteFile(filepath.Join(dir, "short.md"), []byte("# T\n\n## Only\n\n## Two\n"), 0o644)
+
+	s, _ := New(Options{Root: dir, TOC: true})
+	_, body := get(t, s, "/long.md")
+	for _, want := range []string{`class="has-toc"`, `href="#one"`, `href="#one-a"`, `class="l4"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("toc missing %q", want)
+		}
+	}
+	if strings.Contains(body, `href="#too-deep"`) || strings.Contains(body, `href="#title"`) {
+		t.Error("toc includes h1 or h5")
+	}
+	if _, body := get(t, s, "/short.md"); strings.Contains(body, `class="has-toc"`) {
+		t.Error("toc shown for a document with too few headings")
+	}
+	off, _ := New(Options{Root: dir, TOC: false})
+	if _, body := get(t, off, "/long.md"); strings.Contains(body, `class="has-toc"`) {
+		t.Error("toc shown while disabled")
+	}
+}
