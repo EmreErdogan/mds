@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-16
+
+### Added
+- Theme switcher in the top bar, cycling auto → light → dark. The choice is
+  stored in the browser and overrides the server's `theme` setting for that
+  reader. Mermaid diagrams re-render on change.
+
 ## [0.13.0] - 2026-09-16
 
 ### Added

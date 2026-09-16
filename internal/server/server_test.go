@@ -275,8 +275,11 @@ func TestTheme(t *testing.T) {
 	if _, body := get(t, auto, "/README.md"); !strings.Contains(body, `<html lang="en">`) {
 		t.Error("auto theme should not set data-theme")
 	}
+	if _, body := get(t, auto, "/README.md"); !strings.Contains(body, `class="theme-btn" data-server-theme=""`) || !strings.Contains(body, `localStorage.getItem("mds-theme")`) {
+		t.Error("theme switcher missing")
+	}
 	dark, _ := New(Options{Root: root, Theme: "dark"})
-	if _, body := get(t, dark, "/README.md"); !strings.Contains(body, `<html lang="en" data-theme="dark">`) {
+	if _, body := get(t, dark, "/README.md"); !strings.Contains(body, `<html lang="en" data-theme="dark">`) || !strings.Contains(body, `data-server-theme="dark"`) {
 		t.Error("dark theme not applied to html element")
 	}
 }

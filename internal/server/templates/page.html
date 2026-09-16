@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}}</title>
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("mds-theme");
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    else if (t === "auto") document.documentElement.removeAttribute("data-theme");
+  } catch (e) {}
+})();
+</script>
 <style>
 {{.HighlightCSS}}
 </style>
@@ -36,6 +45,8 @@ main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem;min-width:0}
 .toc .filter:focus{outline:none;border-color:var(--link)}
 .toc .empty{color:var(--muted);font-style:italic;display:none}
 .toc.filtered-empty .empty{display:block}
+.theme-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .5rem;cursor:pointer;line-height:1}
+.theme-btn:hover{color:var(--fg);background:var(--code-bg)}
 .toc-btn{display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .55rem;cursor:pointer}
 .toc-btn:hover,.toc-btn[aria-expanded=true]{color:var(--fg);background:var(--code-bg)}
 .toc-menu{display:none;position:fixed;top:2.9rem;right:.75rem;width:min(22rem,calc(100vw - 1.5rem));max-height:calc(100vh - 4rem);overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:30}
@@ -85,6 +96,7 @@ pre.mermaid{background:none;text-align:center}
   <div>{{range $i, $c := .Crumbs}}{{if $i}}<span class="sep">/</span>{{end}}{{if $c.URL}}<a href="{{$c.URL}}">{{$c.Name}}</a>{{else}}<span>{{$c.Name}}</span>{{end}}{{end}}</div>
   <div class="right">
     {{if .RawURL}}<a href="{{.RawURL}}">raw</a>{{end}}
+    <button type="button" class="theme-btn" data-server-theme="{{.Theme}}" aria-label="Theme"></button>
     {{if .TOC}}<button type="button" class="toc-btn" aria-expanded="false" aria-controls="toc-menu" title="Contents (t)">&#9776; Contents</button>{{end}}
   </div>
 </nav>
@@ -98,6 +110,29 @@ pre.mermaid{background:none;text-align:center}
 <button type="button" class="totop" title="Back to top" aria-label="Back to top">&#8593;</button>
 <script>
 (function () {
+  // Theme switcher: auto -> light -> dark. The choice lives in this browser's
+  // localStorage and overrides the server's theme setting.
+  var btn = document.querySelector(".theme-btn");
+  var order = ["auto", "light", "dark"];
+  var labels = { auto: "\u25D0", light: "\u2600", dark: "\u263E" };
+  var titles = { auto: "Theme: auto (follows system)", light: "Theme: light", dark: "Theme: dark" };
+  function stored() { try { var t = localStorage.getItem("mds-theme"); return order.indexOf(t) >= 0 ? t : null; } catch (e) { return null; } }
+  function current() { return stored() || btn.getAttribute("data-server-theme") || "auto"; }
+  function apply(t) {
+    if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+    btn.textContent = labels[t];
+    btn.title = titles[t] + " \u2014 click to change";
+    btn.setAttribute("data-theme-value", t);
+  }
+  apply(current());
+  btn.addEventListener("click", function () {
+    var next = order[(order.indexOf(current()) + 1) % order.length];
+    try { localStorage.setItem("mds-theme", next); } catch (e) {}
+    apply(next);
+    document.dispatchEvent(new CustomEvent("mds:theme"));
+  });
+
   // Heading anchors, like GitHub.
   document.querySelectorAll("main h1[id],main h2[id],main h3[id],main h4[id],main h5[id],main h6[id]").forEach(function (h) {
     var a = document.createElement("a");
@@ -196,16 +231,24 @@ pre.mermaid{background:none;text-align:center}
 <script>
 (function () {
   if (typeof mermaid === "undefined") return; // offline: blocks stay as code
+  var blocks = [];
   document.querySelectorAll("code.language-mermaid").forEach(function (code) {
     var pre = document.createElement("pre");
     pre.className = "mermaid";
     pre.textContent = code.textContent;
     code.parentNode.replaceWith(pre);
+    blocks.push({ el: pre, src: code.textContent });
   });
-  var forced = document.documentElement.getAttribute("data-theme");
-  var dark = forced ? forced === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
-  mermaid.run({ querySelector: "pre.mermaid" });
+  function render() {
+    var forced = document.documentElement.getAttribute("data-theme");
+    var dark = forced ? forced === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    blocks.forEach(function (b) { b.el.removeAttribute("data-processed"); b.el.textContent = b.src; });
+    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
+    mermaid.run({ querySelector: "pre.mermaid" });
+  }
+  render();
+  document.addEventListener("mds:theme", render);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 })();
 </script>{{end}}
 {{if .Reload}}<script>

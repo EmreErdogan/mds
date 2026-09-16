@@ -81,7 +81,8 @@ reload = true                      # live reload
 index = true                       # render README.md / index.md under listings
 open = false                       # open a browser after starting
 toc = true                         # table of contents on rendered pages
-theme = "auto"                     # auto, light or dark
+theme = "auto"                     # auto, light or dark (readers can override
+                                   # it with the switcher in the top bar)
 ```
 
 `mds config [dir]` prints the effective values and the source of each. When
