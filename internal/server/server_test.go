@@ -226,3 +226,17 @@ func TestExcludeAndHidden(t *testing.T) {
 		t.Error("expected error for malformed pattern")
 	}
 }
+
+func TestMermaidScriptOnlyWhenNeeded(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "diagram.md"), []byte("# D\n\n```mermaid\ngraph TD; A-->B;\n```\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "plain.md"), []byte("# P\n\n```go\nx := 1\n```\n"), 0o644)
+	s, _ := New(Options{Root: dir})
+	_, body := get(t, s, "/diagram.md")
+	if !strings.Contains(body, "mermaid.min.js") || !strings.Contains(body, `class="language-mermaid"`) {
+		t.Error("mermaid page missing script or block")
+	}
+	if _, body := get(t, s, "/plain.md"); strings.Contains(body, "mermaid.min.js") {
+		t.Error("mermaid script loaded on a page without diagrams")
+	}
+}

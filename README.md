@@ -101,6 +101,8 @@ or `mds serve config` to serve it.
   without a display it prints a note and keeps serving.
 - YAML front matter (`---` block at the top) is hidden; its `title` field, if
   present, becomes the page title.
+- ```mermaid blocks are rendered as diagrams (needs internet access in the
+  browser: mermaid.js is loaded from a CDN on pages that contain a diagram).
 - Fenced code blocks are syntax-highlighted; the palette follows the system
   light/dark preference.
 - Pages reload automatically when the file you are viewing (or the directory

@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-16
+
+### Added
+- Mermaid diagrams: fenced ```mermaid blocks are rendered in the browser,
+  following the light/dark theme. The renderer is loaded from jsDelivr only on
+  pages that contain a diagram; offline, the block stays as code.
+
 ## [0.8.0] - 2026-09-16
 
 ### Added

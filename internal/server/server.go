@@ -108,6 +108,7 @@ type page struct {
 	Content      template.HTML
 	RawURL       string
 	Reload       bool
+	Mermaid      bool // page has mermaid code blocks; load the renderer
 	HighlightCSS template.CSS
 }
 
@@ -229,6 +230,7 @@ func (s *Server) serveMarkdown(w http.ResponseWriter, fsPath, urlPath, rawURL st
 		Crumbs:  crumbs(urlPath, s.index == ""),
 		Content: template.HTML(res.HTML),
 		RawURL:  rawURL,
+		Mermaid: bytes.Contains(res.HTML, []byte(`class="language-mermaid"`)),
 	})
 }
 
