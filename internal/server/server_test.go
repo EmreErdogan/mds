@@ -249,7 +249,7 @@ func TestTOC(t *testing.T) {
 
 	s, _ := New(Options{Root: dir, TOC: true})
 	_, body := get(t, s, "/long.md")
-	for _, want := range []string{`class="has-toc"`, `href="#one"`, `href="#one-a"`, `class="l4"`} {
+	for _, want := range []string{`class="has-toc"`, `href="#one"`, `href="#one-a"`, `class="l4"`, `class="toc-btn"`, `class="filter"`, `id="toc-menu"`, `class="toc toc-side"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("toc missing %q", want)
 		}
@@ -257,8 +257,11 @@ func TestTOC(t *testing.T) {
 	if strings.Contains(body, `href="#too-deep"`) || strings.Contains(body, `href="#title"`) {
 		t.Error("toc includes h1 or h5")
 	}
-	if _, body := get(t, s, "/short.md"); strings.Contains(body, `class="has-toc"`) {
+	if _, body := get(t, s, "/short.md"); strings.Contains(body, `class="has-toc"`) || strings.Contains(body, `class="toc-btn"`) {
 		t.Error("toc shown for a document with too few headings")
+	}
+	if _, body := get(t, s, "/short.md"); !strings.Contains(body, `class="totop"`) {
+		t.Error("back-to-top button missing")
 	}
 	off, _ := New(Options{Root: dir, TOC: false})
 	if _, body := get(t, off, "/long.md"); strings.Contains(body, `class="has-toc"`) {

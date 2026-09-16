@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-16
+
+### Added
+- Table of contents: a sticky "Contents" button in the top bar opens the
+  heading list on narrow screens; the sidebar stays on wide screens.
+- Heading filter in the table of contents. Enter jumps to the first match;
+  `t` or `/` focuses the filter, Escape clears or closes it.
+- Back-to-top button after scrolling more than one screen.
+- Heading anchor links (`#` on hover), smooth scrolling, and headings no
+  longer hide behind the sticky top bar when following an anchor.
+- The active section stays visible in a long sidebar.
+
+### Changed
+- The top bar is now sticky.
+
 ## [0.10.0] - 2026-09-16
 
 ### Added

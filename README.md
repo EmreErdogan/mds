@@ -102,7 +102,9 @@ or `mds serve config` to serve it.
 - `--open` opens `http://127.0.0.1:<port>/` in the local browser. Over SSH or
   without a display it prints a note and keeps serving.
 - Documents with three or more headings get a table of contents: a sidebar on
-  wide screens, a collapsible "Contents" block on narrow ones.
+  wide screens, a "Contents" button in the top bar on narrow ones. Type to
+  filter headings, Enter jumps to the first match; `t` or `/` focuses the
+  filter. A back-to-top button appears after scrolling down.
 - YAML front matter (`---` block at the top) is hidden; its `title` field, if
   present, becomes the page title.
 - ```mermaid blocks are rendered as diagrams (needs internet access in the
