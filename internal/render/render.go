@@ -4,6 +4,7 @@ package render
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -126,19 +127,42 @@ var (
 	cssText string
 )
 
-// HighlightCSS returns the stylesheet for highlighted code blocks, with a
-// light palette by default and a dark one under prefers-color-scheme: dark.
+// HighlightCSS returns the stylesheet for highlighted code blocks. The light
+// palette is the default; the dark one applies when the system prefers dark
+// (unless the page forces light via data-theme="light") or when the page
+// forces dark via data-theme="dark".
 func HighlightCSS() string {
 	cssOnce.Do(func() {
-		var b strings.Builder
 		f := chromahtml.New(chromahtml.WithClasses(true), chromahtml.ClassPrefix("hl-"))
-		_ = f.WriteCSS(&b, styles.Get(lightStyle))
+		var lb, db strings.Builder
+		_ = f.WriteCSS(&lb, styles.Get(lightStyle))
+		_ = f.WriteCSS(&db, styles.Get(darkStyle))
+		// The page sets code block backgrounds itself (via --code-bg), so drop
+		// chroma's own background rule.
+		light, dark := dropBackground(lb.String()), dropBackground(db.String())
+
+		var b strings.Builder
+		b.WriteString(light)
 		b.WriteString("@media (prefers-color-scheme: dark) {\n")
-		_ = f.WriteCSS(&b, styles.Get(darkStyle))
+		b.WriteString(prefixSelectors(dark, ":root:not([data-theme=\"light\"]) "))
 		b.WriteString("}\n")
+		b.WriteString(prefixSelectors(dark, ":root[data-theme=\"dark\"] "))
 		cssText = b.String()
 	})
 	return cssText
+}
+
+var backgroundRe = regexp.MustCompile(`(?m)^(/\* \w+ \*/ \.hl-chroma \{[^}]*?)\s*background-color: [^;]+;`)
+
+func dropBackground(css string) string {
+	return backgroundRe.ReplaceAllString(css, "$1")
+}
+
+var selectorRe = regexp.MustCompile(`(?m)^((?:/\*[^*]*\*/ )?)(\.hl-[\w-]+)`)
+
+// prefixSelectors prepends prefix to every chroma rule selector in css.
+func prefixSelectors(css, prefix string) string {
+	return selectorRe.ReplaceAllString(css, "${1}"+prefix+"${2}")
 }
 
 // IsMarkdown reports whether the file name has a markdown extension.

@@ -42,6 +42,7 @@ Server:
       --open            Open the page in a browser after starting
       --no-reload       Disable live reload
       --no-toc          Hide the table of contents on rendered pages
+      --theme <name>    auto (follow the system), light or dark
 
 Files (directory mode):
   -t, --types <list>    Only serve these file types, e.g. "md,txt,png".
@@ -57,7 +58,7 @@ Files (directory mode):
 Settings are resolved in this order, later wins:
   defaults < ~/.config/mds/config.toml < <dir>/.mds.toml < environment < flags
 Environment: MDS_HOST, MDS_PORT, MDS_TYPES, MDS_EXCLUDE, MDS_HIDDEN,
-             MDS_RELOAD, MDS_INDEX, MDS_OPEN, MDS_TOC
+             MDS_RELOAD, MDS_INDEX, MDS_OPEN, MDS_TOC, MDS_THEME
 
 Examples:
   mds README.md
@@ -107,11 +108,12 @@ func main() {
 	fs.Usage = printUsage
 	var (
 		port                                   int
-		host, types, exclude                   string
+		host, types, exclude, theme            string
 		index, noIndex, noReload, hidden, open bool
 		noTOC                                  bool
 	)
 	fs.BoolVar(&noTOC, "no-toc", false, "")
+	fs.StringVar(&theme, "theme", "", "")
 	fs.IntVar(&port, "port", 0, "")
 	fs.IntVar(&port, "p", 0, "")
 	fs.StringVar(&host, "host", "", "")
@@ -184,6 +186,11 @@ func main() {
 			cfg.Reload, src["reload"] = false, flagSrc
 		case "no-toc":
 			cfg.TOC, src["toc"] = false, flagSrc
+		case "theme":
+			if err := config.CheckTheme(theme); err != nil {
+				fatal(err)
+			}
+			cfg.Theme, src["theme"] = theme, flagSrc
 		}
 	})
 
@@ -196,6 +203,7 @@ func main() {
 		Reload:   cfg.Reload,
 		DirIndex: cfg.Index,
 		TOC:      cfg.TOC,
+		Theme:    cfg.Theme,
 	})
 	if err != nil {
 		fatal(err)

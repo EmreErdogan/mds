@@ -50,6 +50,8 @@ type Options struct {
 	DirIndex bool
 	// TOC shows a table of contents on rendered markdown pages.
 	TOC bool
+	// Theme is "auto", "light" or "dark".
+	Theme string
 }
 
 // Server is an http.Handler serving a directory or a single markdown file.
@@ -62,6 +64,7 @@ type Server struct {
 	hub      *watch.Hub // nil when live reload is off
 	dirIndex bool
 	toc      bool
+	theme    string
 }
 
 // New creates a Server from opts.
@@ -70,7 +73,7 @@ func New(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden, toc: opts.TOC}
+	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden, toc: opts.TOC, theme: opts.Theme}
 	for _, pat := range opts.Exclude {
 		if _, err := path.Match(pat, ""); err != nil {
 			return nil, fmt.Errorf("invalid exclude pattern %q: %w", pat, err)
@@ -113,6 +116,7 @@ type page struct {
 	Reload       bool
 	Mermaid      bool // page has mermaid code blocks; load the renderer
 	TOC          []tocEntry
+	Theme        string // "" for auto, else "light" or "dark"
 	HighlightCSS template.CSS
 }
 
@@ -397,6 +401,9 @@ func (s *Server) resolve(urlPath string) string {
 func (s *Server) render(w http.ResponseWriter, p page) {
 	p.Reload = s.hub != nil
 	p.HighlightCSS = template.CSS(render.HighlightCSS())
+	if s.theme == "light" || s.theme == "dark" {
+		p.Theme = s.theme
+	}
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "page.html", p); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

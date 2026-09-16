@@ -49,3 +49,22 @@ func TestInvalidFrontMatterDoesNotBreakRendering(t *testing.T) {
 		t.Errorf("body lost: %s", res.HTML)
 	}
 }
+
+func TestHighlightCSSThemes(t *testing.T) {
+	css := HighlightCSS()
+	for _, want := range []string{
+		"/* PreWrapper */ .hl-chroma {",
+		"@media (prefers-color-scheme: dark)",
+		`:root:not([data-theme="light"]) .hl-chroma {`,
+		`:root[data-theme="dark"] .hl-chroma {`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("css missing %q", want)
+		}
+	}
+	for _, line := range strings.Split(css, "\n") {
+		if strings.Contains(line, ".hl-chroma {") && strings.Contains(line, "background-color") {
+			t.Errorf("chroma background rule should be dropped: %s", line)
+		}
+	}
+}

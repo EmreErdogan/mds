@@ -25,17 +25,21 @@ type Config struct {
 	Index   bool     // render README.md / index.md under directory listings
 	Open    bool     // open a browser after the server starts
 	TOC     bool     // show a table of contents on rendered pages
+	Theme   string   // "auto", "light" or "dark"
 }
 
+// Themes lists the accepted theme values.
+var Themes = []string{"auto", "light", "dark"}
+
 // Keys lists setting names in display order.
-var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open", "toc"}
+var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open", "toc", "theme"}
 
 // Sources records where each setting's effective value came from.
 type Sources map[string]string
 
 // Defaults returns the built-in configuration.
 func Defaults() Config {
-	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true, TOC: true}
+	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true, TOC: true, Theme: "auto"}
 }
 
 // GlobalPath returns the global config file location:
@@ -69,6 +73,7 @@ type file struct {
 	Index   *bool     `toml:"index"`
 	Open    *bool     `toml:"open"`
 	TOC     *bool     `toml:"toc"`
+	Theme   *string   `toml:"theme"`
 }
 
 // Load resolves the configuration for serving localDir.
@@ -143,6 +148,12 @@ func applyFile(cfg *Config, src Sources, label, path string) error {
 	if f.TOC != nil {
 		cfg.TOC, src["toc"] = *f.TOC, where
 	}
+	if f.Theme != nil {
+		if err := CheckTheme(*f.Theme); err != nil {
+			return fmt.Errorf("%s: %w", path, err)
+		}
+		cfg.Theme, src["theme"] = *f.Theme, where
+	}
 	return nil
 }
 
@@ -162,6 +173,12 @@ func applyEnv(cfg *Config, src Sources) error {
 	}
 	if v, ok := os.LookupEnv("MDS_EXCLUDE"); ok {
 		cfg.Exclude, src["exclude"] = SplitList(v), "env MDS_EXCLUDE"
+	}
+	if v, ok := os.LookupEnv("MDS_THEME"); ok && v != "" {
+		if err := CheckTheme(v); err != nil {
+			return fmt.Errorf("MDS_THEME: %w", err)
+		}
+		cfg.Theme, src["theme"] = v, "env MDS_THEME"
 	}
 	for _, e := range []struct {
 		name string
@@ -185,6 +202,16 @@ func applyEnv(cfg *Config, src Sources) error {
 		*e.dst, src[e.key] = b, "env "+e.name
 	}
 	return nil
+}
+
+// CheckTheme validates a theme value.
+func CheckTheme(v string) error {
+	for _, t := range Themes {
+		if v == t {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid theme %q (want auto, light or dark)", v)
 }
 
 func checkPort(n int) error {
@@ -254,6 +281,8 @@ func Format(cfg Config, key string) string {
 		return strconv.FormatBool(cfg.Open)
 	case "toc":
 		return strconv.FormatBool(cfg.TOC)
+	case "theme":
+		return cfg.Theme
 	}
 	return ""
 }
@@ -289,6 +318,9 @@ const Template = `# mds configuration
 
 # Show a table of contents on rendered pages.
 #toc = true
+
+# Color theme: "auto" follows the system, or force "light" / "dark".
+#theme = "auto"
 `
 
 // Init writes Template to path. It refuses to overwrite an existing file

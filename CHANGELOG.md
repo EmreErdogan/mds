@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-16
+
+### Added
+- `theme` setting, `--theme` flag and `MDS_THEME`: `auto` follows the system
+  (default), `light` and `dark` force a palette. Applies to the page, code
+  highlighting and Mermaid diagrams.
+
+### Fixed
+- Code blocks in dark mode now use the page's code background instead of
+  blending into the page.
+
 ## [0.12.0] - 2026-09-16
 
 ### Added

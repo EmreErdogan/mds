@@ -12,7 +12,7 @@ func TestPrecedence(t *testing.T) {
 	local := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", global)
 	t.Setenv("HOME", t.TempDir())
-	for _, v := range []string{"MDS_HOST", "MDS_PORT", "MDS_TYPES", "MDS_EXCLUDE", "MDS_HIDDEN", "MDS_RELOAD", "MDS_INDEX", "MDS_OPEN", "MDS_TOC"} {
+	for _, v := range []string{"MDS_HOST", "MDS_PORT", "MDS_TYPES", "MDS_EXCLUDE", "MDS_HIDDEN", "MDS_RELOAD", "MDS_INDEX", "MDS_OPEN", "MDS_TOC", "MDS_THEME"} {
 		t.Setenv(v, "")
 		os.Unsetenv(v)
 	}
@@ -22,7 +22,7 @@ func TestPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Host != "0.0.0.0" || cfg.Port != 8080 || !cfg.Reload || cfg.Index || cfg.Hidden || cfg.Open || !cfg.TOC || src["host"] != "default" {
+	if cfg.Host != "0.0.0.0" || cfg.Port != 8080 || !cfg.Reload || cfg.Index || cfg.Hidden || cfg.Open || !cfg.TOC || cfg.Theme != "auto" || src["host"] != "default" {
 		t.Errorf("defaults wrong: %+v %v", cfg, src)
 	}
 	if len(cfg.Exclude) != 1 || cfg.Exclude[0] != ".git" {
@@ -67,6 +67,15 @@ func TestPrecedence(t *testing.T) {
 		t.Error("expected error for bad MDS_PORT")
 	}
 	os.Unsetenv("MDS_PORT")
+	t.Setenv("MDS_THEME", "blue")
+	if _, _, err := Load(local); err == nil {
+		t.Error("expected error for bad MDS_THEME")
+	}
+	os.Unsetenv("MDS_THEME")
+	os.WriteFile(filepath.Join(local, ".mds.toml"), []byte("theme = \"dark\"\n"), 0o644)
+	if cfg, _, err := Load(local); err != nil || cfg.Theme != "dark" {
+		t.Errorf("theme from file: %v %q", err, cfg.Theme)
+	}
 	os.WriteFile(filepath.Join(local, ".mds.toml"), []byte("prot = 1\n"), 0o644)
 	if _, _, err := Load(local); err == nil {
 		t.Error("expected error for unknown key")
@@ -112,7 +121,7 @@ func TestInitTemplateIsValidAndComplete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("uncommented template does not load: %v", err)
 	}
-	if cfg.Port != 8080 || cfg.Host != "0.0.0.0" || !cfg.Reload || !cfg.TOC {
+	if cfg.Port != 8080 || cfg.Host != "0.0.0.0" || !cfg.Reload || !cfg.TOC || cfg.Theme != "auto" {
 		t.Errorf("template defaults differ: %+v", cfg)
 	}
 }

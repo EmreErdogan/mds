@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,7 +10,9 @@
 <style>
 /* page styles come last so pre/code backgrounds win over chroma's */
 :root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a}
-@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}}
+:root[data-theme=light]{color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
 html{scroll-behavior:smooth}
@@ -200,7 +202,8 @@ pre.mermaid{background:none;text-align:center}
     pre.textContent = code.textContent;
     code.parentNode.replaceWith(pre);
   });
-  var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  var forced = document.documentElement.getAttribute("data-theme");
+  var dark = forced ? forced === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
   mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
   mermaid.run({ querySelector: "pre.mermaid" });
 })();

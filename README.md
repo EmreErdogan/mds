@@ -43,6 +43,7 @@ mds serve [flags] <path>   Same thing; use when the path is named like a
       --open           Open the page in a browser after starting
       --no-reload      Disable live reload
       --no-toc         Hide the table of contents
+      --theme <name>   auto (default), light or dark
   -t, --types <list>   Only serve these file types, e.g. "md,txt,png"
   -x, --exclude <list> Glob patterns for names to skip (default ".git")
       --hidden         Also serve dot-prefixed files and directories
@@ -64,7 +65,7 @@ Settings are resolved in this order, later wins:
 2. global config: `~/.config/mds/config.toml` (or `$XDG_CONFIG_HOME/mds/config.toml`)
 3. local config: `.mds.toml` in the served directory
 4. environment: `MDS_HOST`, `MDS_PORT`, `MDS_TYPES`, `MDS_EXCLUDE`,
-   `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`, `MDS_TOC`
+   `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`, `MDS_TOC`, `MDS_THEME`
 5. command-line flags
 
 `mds config init` creates the global file with every key commented out. All
@@ -80,6 +81,7 @@ reload = true                      # live reload
 index = true                       # render README.md / index.md under listings
 open = false                       # open a browser after starting
 toc = true                         # table of contents on rendered pages
+theme = "auto"                     # auto, light or dark
 ```
 
 `mds config [dir]` prints the effective values and the source of each. When

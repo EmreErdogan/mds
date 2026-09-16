@@ -268,3 +268,15 @@ func TestTOC(t *testing.T) {
 		t.Error("toc shown while disabled")
 	}
 }
+
+func TestTheme(t *testing.T) {
+	root := testRoot(t)
+	auto, _ := New(Options{Root: root})
+	if _, body := get(t, auto, "/README.md"); !strings.Contains(body, `<html lang="en">`) {
+		t.Error("auto theme should not set data-theme")
+	}
+	dark, _ := New(Options{Root: root, Theme: "dark"})
+	if _, body := get(t, dark, "/README.md"); !strings.Contains(body, `<html lang="en" data-theme="dark">`) {
+		t.Error("dark theme not applied to html element")
+	}
+}
