@@ -6,7 +6,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -32,24 +34,33 @@ Usage:
   mds update                Update mds to the latest release
   mds version               Print the version
 
-Flags:
+Server:
   -p, --port <n>        Port to listen on (default 8080)
       --host <addr>     Address to bind (default 0.0.0.0)
-  -e, --ext <list>      Comma-separated file extensions to serve in directory
-                        mode, e.g. "md,txt,png". Default: all files.
+      --open            Open the page in a browser after starting
+      --no-reload       Disable live reload
+
+Files (directory mode):
+  -t, --types <list>    Only serve these file types, e.g. "md,txt,png".
+                        Default: all files.
+  -x, --exclude <list>  Glob patterns for names to skip, e.g. "node_modules,*.log".
+                        Default: ".git". Excluded names are never served.
+      --hidden          Also serve dot-prefixed files and directories
       --index           Render README.md / index.md under directory listings
       --no-index        Disable --index
-      --no-reload       Disable live reload
+
   -h, --help            Show this help
 
 Settings are resolved in this order, later wins:
   defaults < ~/.config/mds/config.toml < <dir>/.mds.toml < environment < flags
-Environment: MDS_HOST, MDS_PORT, MDS_EXT, MDS_RELOAD, MDS_INDEX
+Environment: MDS_HOST, MDS_PORT, MDS_TYPES, MDS_EXCLUDE, MDS_HIDDEN,
+             MDS_RELOAD, MDS_INDEX, MDS_OPEN
 
 Examples:
   mds README.md
   mds ./docs
-  mds -p 3000 -e md,png ./notes
+  mds -p 3000 -t md,png ./notes
+  mds -x node_modules,dist ./project
   MDS_HOST=127.0.0.1 mds ./notes   # local only
 `)
 }
@@ -86,15 +97,19 @@ func main() {
 	fs := flag.NewFlagSet("mds", flag.ExitOnError)
 	fs.Usage = printUsage
 	var (
-		port                     int
-		host, ext                string
-		index, noIndex, noReload bool
+		port                                   int
+		host, types, exclude                   string
+		index, noIndex, noReload, hidden, open bool
 	)
 	fs.IntVar(&port, "port", 0, "")
 	fs.IntVar(&port, "p", 0, "")
 	fs.StringVar(&host, "host", "", "")
-	fs.StringVar(&ext, "ext", "", "")
-	fs.StringVar(&ext, "e", "", "")
+	fs.StringVar(&types, "types", "", "")
+	fs.StringVar(&types, "t", "", "")
+	fs.StringVar(&exclude, "exclude", "", "")
+	fs.StringVar(&exclude, "x", "", "")
+	fs.BoolVar(&hidden, "hidden", false, "")
+	fs.BoolVar(&open, "open", false, "")
 	fs.BoolVar(&index, "index", false, "")
 	fs.BoolVar(&noIndex, "no-index", false, "")
 	fs.BoolVar(&noReload, "no-reload", false, "")
@@ -142,8 +157,14 @@ func main() {
 			cfg.Port, src["port"] = port, flagSrc
 		case "host":
 			cfg.Host, src["host"] = host, flagSrc
-		case "ext", "e":
-			cfg.Ext, src["ext"] = config.SplitExts(ext), flagSrc
+		case "types", "t":
+			cfg.Types, src["types"] = config.SplitExts(types), flagSrc
+		case "exclude", "x":
+			cfg.Exclude, src["exclude"] = config.SplitList(exclude), flagSrc
+		case "hidden":
+			cfg.Hidden, src["hidden"] = true, flagSrc
+		case "open":
+			cfg.Open, src["open"] = true, flagSrc
 		case "index":
 			cfg.Index, src["index"] = true, flagSrc
 		case "no-index":
@@ -156,7 +177,9 @@ func main() {
 	handler, err := server.New(server.Options{
 		Root:     root,
 		Index:    indexFile,
-		Exts:     cfg.Ext,
+		Types:    cfg.Types,
+		Exclude:  cfg.Exclude,
+		Hidden:   cfg.Hidden,
 		Reload:   cfg.Reload,
 		DirIndex: cfg.Index,
 	})
@@ -177,9 +200,45 @@ func main() {
 	for _, u := range listenURLs(ln.Addr().(*net.TCPAddr)) {
 		fmt.Println("  " + u)
 	}
+	if cfg.Open {
+		go openBrowser(localURL(ln.Addr().(*net.TCPAddr)))
+	}
 	if err := http.Serve(ln, handler); err != nil {
 		fatal(err)
 	}
+}
+
+// localURL is the address a browser on this machine should use: loopback when
+// the server listens on all interfaces, otherwise the bound address.
+func localURL(addr *net.TCPAddr) string {
+	ip := addr.IP.String()
+	if addr.IP.IsUnspecified() {
+		ip = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(ip, strconv.Itoa(addr.Port)) + "/"
+}
+
+// openBrowser opens url with the platform's default opener. Failure (no
+// display over SSH, no opener installed) is reported but never fatal.
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		if os.Getenv("DISPLAY") == "" && os.Getenv("WAYLAND_DISPLAY") == "" {
+			fmt.Fprintln(os.Stderr, "note: could not open a browser (no display)")
+			return
+		}
+		cmd = exec.Command("xdg-open", url)
+	}
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "note: could not open a browser: %v\n", err)
+		return
+	}
+	go cmd.Wait()
 }
 
 // warnCollision prints a hint when a subcommand name also exists as a path in

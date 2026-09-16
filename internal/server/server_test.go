@@ -63,7 +63,7 @@ func TestDirectoryMode(t *testing.T) {
 }
 
 func TestExtFilter(t *testing.T) {
-	s, err := New(Options{Root: testRoot(t), Exts: []string{"md"}})
+	s, err := New(Options{Root: testRoot(t), Types: []string{"md"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,8 +177,52 @@ func TestDirIndex(t *testing.T) {
 	if _, body := get(t, off, "/"); strings.Contains(body, `class="dir-index"`) {
 		t.Error("index rendered while disabled")
 	}
-	filtered, _ := New(Options{Root: root, DirIndex: true, Exts: []string{"txt"}})
+	filtered, _ := New(Options{Root: root, DirIndex: true, Types: []string{"txt"}})
 	if _, body := get(t, filtered, "/"); strings.Contains(body, `class="dir-index"`) {
 		t.Error("index rendered although md is filtered out")
+	}
+}
+
+func TestExcludeAndHidden(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "node_modules", "pkg"), 0o755)
+	os.WriteFile(filepath.Join(dir, "node_modules", "pkg", "x.md"), []byte("x"), 0o644)
+	os.WriteFile(filepath.Join(dir, "debug.log"), []byte("log"), 0o644)
+	os.WriteFile(filepath.Join(dir, ".secret.md"), []byte("s"), 0o644)
+	os.WriteFile(filepath.Join(dir, "ok.md"), []byte("ok"), 0o644)
+
+	s, err := New(Options{Root: dir, Exclude: []string{"node_modules", "*.log"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, body := get(t, s, "/")
+	for _, bad := range []string{"node_modules", "debug.log", ".secret"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("listing shows excluded %s", bad)
+		}
+	}
+	if !strings.Contains(body, "ok.md") {
+		t.Error("listing missing ok.md")
+	}
+	for _, p := range []string{"/node_modules/", "/node_modules/pkg/x.md", "/debug.log", "/.secret.md"} {
+		if code, _ := get(t, s, p); code != 404 {
+			t.Errorf("%s: got %d, want 404", p, code)
+		}
+	}
+
+	h, _ := New(Options{Root: dir, Hidden: true, Exclude: []string{".git"}})
+	if code, _ := get(t, h, "/.secret.md"); code != 200 {
+		t.Errorf("hidden file with Hidden=true: got %d", code)
+	}
+	if _, body := get(t, h, "/"); !strings.Contains(body, ".secret.md") {
+		t.Error("hidden file not listed with Hidden=true")
+	}
+	os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	if code, _ := get(t, h, "/.git/"); code != 404 {
+		t.Errorf(".git should stay excluded even with Hidden=true, got %d", code)
+	}
+
+	if _, err := New(Options{Root: dir, Exclude: []string{"[bad"}}); err == nil {
+		t.Error("expected error for malformed pattern")
 	}
 }

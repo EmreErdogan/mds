@@ -34,9 +34,15 @@ type Options struct {
 	// Index, if set, is the absolute path of a single markdown file that is
 	// rendered at "/". Directory listings are disabled in this mode.
 	Index string
-	// Exts restricts served files to these extensions (lowercase, no dot).
+	// Types restricts served files to these extensions (lowercase, no dot).
 	// Empty means all files are served.
-	Exts []string
+	Types []string
+	// Exclude holds glob patterns (path.Match syntax) matched against file
+	// and directory names. Matches are hidden from listings and never served.
+	Exclude []string
+	// Hidden serves dot-prefixed files and directories, which are skipped by
+	// default.
+	Hidden bool
 	// Reload enables live reload: pages subscribe to changes of the file or
 	// directory they show and reload themselves.
 	Reload bool
@@ -48,7 +54,9 @@ type Options struct {
 type Server struct {
 	root     string
 	index    string
-	exts     map[string]bool
+	types    map[string]bool
+	exclude  []string
+	hidden   bool
 	hub      *watch.Hub // nil when live reload is off
 	dirIndex bool
 }
@@ -59,7 +67,13 @@ func New(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex}
+	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden}
+	for _, pat := range opts.Exclude {
+		if _, err := path.Match(pat, ""); err != nil {
+			return nil, fmt.Errorf("invalid exclude pattern %q: %w", pat, err)
+		}
+		s.exclude = append(s.exclude, pat)
+	}
 	if opts.Reload {
 		hub, err := watch.New()
 		if err != nil {
@@ -67,10 +81,10 @@ func New(opts Options) (*Server, error) {
 		}
 		s.hub = hub
 	}
-	if len(opts.Exts) > 0 {
-		s.exts = make(map[string]bool, len(opts.Exts))
-		for _, e := range opts.Exts {
-			s.exts[strings.ToLower(e)] = true
+	if len(opts.Types) > 0 {
+		s.types = make(map[string]bool, len(opts.Types))
+		for _, e := range opts.Types {
+			s.types[strings.ToLower(e)] = true
 		}
 	}
 	return s, nil
@@ -112,13 +126,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlPath := path.Clean("/" + r.URL.Path)
-	if hasHiddenSegment(urlPath) {
-		http.NotFound(w, r)
-		return
-	}
-
 	if urlPath == eventsPath {
 		s.serveEvents(w, r)
+		return
+	}
+	if s.blockedPath(urlPath) {
+		http.NotFound(w, r)
 		return
 	}
 
@@ -151,7 +164,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !s.allowed(info.Name()) {
+	if !s.allowedType(info.Name()) {
 		http.NotFound(w, r)
 		return
 	}
@@ -162,12 +175,38 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, fsPath)
 }
 
-func (s *Server) allowed(name string) bool {
-	if s.exts == nil {
+// allowedType reports whether a file passes the types filter.
+func (s *Server) allowedType(name string) bool {
+	if s.types == nil {
 		return true
 	}
 	e := strings.ToLower(strings.TrimPrefix(filepath.Ext(name), "."))
-	return s.exts[e]
+	return s.types[e]
+}
+
+// blockedName reports whether a file or directory name is hidden from
+// listings and refused, because it is dot-prefixed (unless Hidden) or matches
+// an exclude pattern.
+func (s *Server) blockedName(name string) bool {
+	if !s.hidden && strings.HasPrefix(name, ".") {
+		return true
+	}
+	for _, pat := range s.exclude {
+		if ok, _ := path.Match(pat, name); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// blockedPath applies blockedName to every segment of a cleaned URL path.
+func (s *Server) blockedPath(urlPath string) bool {
+	for _, seg := range strings.Split(strings.Trim(urlPath, "/"), "/") {
+		if seg != "" && s.blockedName(seg) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) serveMarkdown(w http.ResponseWriter, fsPath, urlPath, rawURL string) {
@@ -202,10 +241,10 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 	var entries []entry
 	for _, d := range dirents {
 		name := d.Name()
-		if strings.HasPrefix(name, ".") {
+		if s.blockedName(name) {
 			continue
 		}
-		if !d.IsDir() && !s.allowed(name) {
+		if !d.IsDir() && !s.allowedType(name) {
 			continue
 		}
 		e := entry{Name: name, IsDir: d.IsDir()}
@@ -305,7 +344,7 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 // if the URL is not something this server would serve.
 func (s *Server) resolve(urlPath string) string {
 	urlPath = path.Clean("/" + urlPath)
-	if hasHiddenSegment(urlPath) {
+	if s.blockedPath(urlPath) {
 		return ""
 	}
 	if s.index != "" {
@@ -336,7 +375,7 @@ func (s *Server) render(w http.ResponseWriter, p page) {
 // dir that would be served, or "".
 func (s *Server) indexFile(dir string) string {
 	for _, name := range []string{"README.md", "readme.md", "Readme.md", "index.md", "INDEX.md"} {
-		if !s.allowed(name) {
+		if !s.allowedType(name) || s.blockedName(name) {
 			continue
 		}
 		if info, err := os.Stat(filepath.Join(dir, name)); err == nil && !info.IsDir() {
@@ -379,15 +418,6 @@ func parentURL(urlPath string) string {
 		return "/"
 	}
 	return p + "/"
-}
-
-func hasHiddenSegment(p string) bool {
-	for _, seg := range strings.Split(p, "/") {
-		if strings.HasPrefix(seg, ".") && seg != "." && seg != ".." {
-			return true
-		}
-	}
-	return false
 }
 
 func humanSize(n int64) string {

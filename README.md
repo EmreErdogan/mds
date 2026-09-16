@@ -3,10 +3,11 @@
 Serve markdown files as HTML from the command line.
 
 ```sh
-mds README.md        # render one file at http://127.0.0.1:8080/
-mds ./docs           # serve a directory with listings
-mds -e md,png ./docs # serve only .md and .png files
-mds -p 3000 ./docs   # custom port
+mds README.md              # render one file at http://127.0.0.1:8080/
+mds ./docs                 # serve a directory with listings
+mds -t md,png ./docs       # serve only .md and .png files
+mds -x node_modules ./app  # skip node_modules
+mds -p 3000 ./docs         # custom port
 ```
 
 ## Install
@@ -39,10 +40,13 @@ mds serve [flags] <path>   Same thing; use when the path is named like a
 
   -p, --port <n>       Port to listen on (default 8080)
       --host <addr>    Address to bind (default 0.0.0.0)
-  -e, --ext <list>     Comma-separated extensions to serve in directory mode
+      --open           Open the page in a browser after starting
+      --no-reload      Disable live reload
+  -t, --types <list>   Only serve these file types, e.g. "md,txt,png"
+  -x, --exclude <list> Glob patterns for names to skip (default ".git")
+      --hidden         Also serve dot-prefixed files and directories
       --index          Render README.md / index.md under directory listings
       --no-index       Disable --index
-      --no-reload      Disable live reload
   -h, --help           Show help
 
 mds config [dir]       Show effective settings and where each comes from
@@ -57,17 +61,21 @@ Settings are resolved in this order, later wins:
 1. built-in defaults
 2. global config: `~/.config/mds/config.toml` (or `$XDG_CONFIG_HOME/mds/config.toml`)
 3. local config: `.mds.toml` in the served directory
-4. environment: `MDS_HOST`, `MDS_PORT`, `MDS_EXT`, `MDS_RELOAD`, `MDS_INDEX`
+4. environment: `MDS_HOST`, `MDS_PORT`, `MDS_TYPES`, `MDS_EXCLUDE`,
+   `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`
 5. command-line flags
 
 All keys are optional:
 
 ```toml
-host = "127.0.0.1"     # bind address
+host = "127.0.0.1"                 # bind address
 port = 3000
-ext = ["md", "png"]    # only serve these extensions in directory mode
-reload = true          # live reload
-index = true           # render README.md / index.md under listings
+types = ["md", "png"]              # only serve these file types
+exclude = [".git", "node_modules"] # glob patterns for names to skip
+hidden = false                     # serve dot-prefixed files too
+reload = true                      # live reload
+index = true                       # render README.md / index.md under listings
+open = false                       # open a browser after starting
 ```
 
 `mds config [dir]` prints the effective values and the source of each. When
@@ -86,7 +94,11 @@ or `mds serve config` to serve it.
 - With `index = true` (or `--index`), a directory that contains `README.md` or
   `index.md` shows it rendered below the listing, like GitHub.
 - In directory mode, markdown files are rendered and everything else is served
-  as-is. Hidden files (dot-prefixed) are never served.
+  as-is. Dot-prefixed files are skipped unless `--hidden` is given; names
+  matching an `exclude` pattern are never listed or served. Patterns use shell
+  glob syntax and match a single file or directory name.
+- `--open` opens `http://127.0.0.1:<port>/` in the local browser. Over SSH or
+  without a display it prints a note and keeps serving.
 - Fenced code blocks are syntax-highlighted; the palette follows the system
   light/dark preference.
 - Pages reload automatically when the file you are viewing (or the directory

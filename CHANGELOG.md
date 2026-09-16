@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-16
+
+### Changed
+- `--ext` / `-e` is now `--types` / `-t`; the config key `ext` is `types` and
+  `MDS_EXT` is `MDS_TYPES`. A config file still using `ext` gets a rename hint.
+
+### Added
+- `--exclude` / `-x`, config `exclude`, `MDS_EXCLUDE`: glob patterns for file
+  and directory names to hide and refuse to serve. Default `.git`.
+- `--hidden`, config `hidden`, `MDS_HIDDEN`: serve dot-prefixed files.
+- `--open`, config `open`, `MDS_OPEN`: open the local URL in a browser after
+  starting. Without a display it prints a note and continues.
+
 ## [0.6.0] - 2026-09-15
 
 ### Added

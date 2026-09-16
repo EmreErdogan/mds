@@ -16,22 +16,25 @@ import (
 
 // Config holds every user-tunable setting.
 type Config struct {
-	Host   string
-	Port   int
-	Ext    []string // allowed extensions in directory mode; empty = all
-	Reload bool     // live reload
-	Index  bool     // render README.md / index.md under directory listings
+	Host    string
+	Port    int
+	Types   []string // allowed extensions in directory mode; empty = all
+	Exclude []string // glob patterns for names to hide and refuse to serve
+	Hidden  bool     // serve dot-prefixed files and directories
+	Reload  bool     // live reload
+	Index   bool     // render README.md / index.md under directory listings
+	Open    bool     // open a browser after the server starts
 }
 
 // Keys lists setting names in display order.
-var Keys = []string{"host", "port", "ext", "reload", "index"}
+var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open"}
 
 // Sources records where each setting's effective value came from.
 type Sources map[string]string
 
 // Defaults returns the built-in configuration.
 func Defaults() Config {
-	return Config{Host: "0.0.0.0", Port: 8080, Reload: true, Index: false}
+	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true}
 }
 
 // GlobalPath returns the global config file location:
@@ -56,11 +59,14 @@ func LocalPath(dir string) string { return filepath.Join(dir, LocalName) }
 
 // file mirrors Config with optional fields so absent keys can be detected.
 type file struct {
-	Host   *string   `toml:"host"`
-	Port   *int      `toml:"port"`
-	Ext    *[]string `toml:"ext"`
-	Reload *bool     `toml:"reload"`
-	Index  *bool     `toml:"index"`
+	Host    *string   `toml:"host"`
+	Port    *int      `toml:"port"`
+	Types   *[]string `toml:"types"`
+	Exclude *[]string `toml:"exclude"`
+	Hidden  *bool     `toml:"hidden"`
+	Reload  *bool     `toml:"reload"`
+	Index   *bool     `toml:"index"`
+	Open    *bool     `toml:"open"`
 }
 
 // Load resolves the configuration for serving localDir.
@@ -98,7 +104,11 @@ func applyFile(cfg *Config, src Sources, label, path string) error {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 	if undecoded := md.Undecoded(); len(undecoded) > 0 {
-		return fmt.Errorf("%s: unknown setting %q", path, undecoded[0].String())
+		key := undecoded[0].String()
+		if key == "ext" {
+			return fmt.Errorf("%s: setting \"ext\" was renamed to \"types\"", path)
+		}
+		return fmt.Errorf("%s: unknown setting %q", path, key)
 	}
 	where := label + " (" + path + ")"
 	if f.Host != nil {
@@ -110,14 +120,23 @@ func applyFile(cfg *Config, src Sources, label, path string) error {
 		}
 		cfg.Port, src["port"] = *f.Port, where
 	}
-	if f.Ext != nil {
-		cfg.Ext, src["ext"] = NormalizeExts(*f.Ext), where
+	if f.Types != nil {
+		cfg.Types, src["types"] = NormalizeExts(*f.Types), where
+	}
+	if f.Exclude != nil {
+		cfg.Exclude, src["exclude"] = NormalizeList(*f.Exclude), where
+	}
+	if f.Hidden != nil {
+		cfg.Hidden, src["hidden"] = *f.Hidden, where
 	}
 	if f.Reload != nil {
 		cfg.Reload, src["reload"] = *f.Reload, where
 	}
 	if f.Index != nil {
 		cfg.Index, src["index"] = *f.Index, where
+	}
+	if f.Open != nil {
+		cfg.Open, src["open"] = *f.Open, where
 	}
 	return nil
 }
@@ -133,14 +152,22 @@ func applyEnv(cfg *Config, src Sources) error {
 		}
 		cfg.Port, src["port"] = n, "env MDS_PORT"
 	}
-	if v, ok := os.LookupEnv("MDS_EXT"); ok {
-		cfg.Ext, src["ext"] = SplitExts(v), "env MDS_EXT"
+	if v, ok := os.LookupEnv("MDS_TYPES"); ok {
+		cfg.Types, src["types"] = SplitExts(v), "env MDS_TYPES"
+	}
+	if v, ok := os.LookupEnv("MDS_EXCLUDE"); ok {
+		cfg.Exclude, src["exclude"] = SplitList(v), "env MDS_EXCLUDE"
 	}
 	for _, e := range []struct {
 		name string
 		dst  *bool
 		key  string
-	}{{"MDS_RELOAD", &cfg.Reload, "reload"}, {"MDS_INDEX", &cfg.Index, "index"}} {
+	}{
+		{"MDS_HIDDEN", &cfg.Hidden, "hidden"},
+		{"MDS_RELOAD", &cfg.Reload, "reload"},
+		{"MDS_INDEX", &cfg.Index, "index"},
+		{"MDS_OPEN", &cfg.Open, "open"},
+	} {
 		v, ok := os.LookupEnv(e.name)
 		if !ok || v == "" {
 			continue
@@ -178,6 +205,22 @@ func NormalizeExts(in []string) []string {
 	return out
 }
 
+// SplitList parses a comma-separated list, dropping blanks.
+func SplitList(s string) []string {
+	return NormalizeList(strings.Split(s, ","))
+}
+
+// NormalizeList trims entries and drops blanks.
+func NormalizeList(in []string) []string {
+	out := []string{}
+	for _, e := range in {
+		if e = strings.TrimSpace(e); e != "" {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // Format renders a setting value for display.
 func Format(cfg Config, key string) string {
 	switch key {
@@ -185,15 +228,24 @@ func Format(cfg Config, key string) string {
 		return cfg.Host
 	case "port":
 		return strconv.Itoa(cfg.Port)
-	case "ext":
-		if len(cfg.Ext) == 0 {
+	case "types":
+		if len(cfg.Types) == 0 {
 			return "(all)"
 		}
-		return strings.Join(cfg.Ext, ",")
+		return strings.Join(cfg.Types, ",")
+	case "exclude":
+		if len(cfg.Exclude) == 0 {
+			return "(none)"
+		}
+		return strings.Join(cfg.Exclude, ",")
+	case "hidden":
+		return strconv.FormatBool(cfg.Hidden)
 	case "reload":
 		return strconv.FormatBool(cfg.Reload)
 	case "index":
 		return strconv.FormatBool(cfg.Index)
+	case "open":
+		return strconv.FormatBool(cfg.Open)
 	}
 	return ""
 }
