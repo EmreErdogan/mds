@@ -62,6 +62,19 @@ main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem;min-width:0}
   .toc-side{display:block;grid-column:2;position:sticky;top:3rem;align-self:start;max-height:calc(100vh - 3rem);overflow:auto;padding:2rem 0}
   .toc-side .title{color:var(--muted);font-weight:600;margin-bottom:.4rem}
 }
+@media print{
+  :root,:root[data-theme=dark]{color-scheme:light;--bg:#fff;--fg:#000;--muted:#555;--border:#bbb;--code-bg:#f3f3f3;--link:#000;--quote:#444}
+  nav,.toc-menu,.toc-side,.totop,.anchor,.theme-btn,.toc-btn{display:none!important}
+  body.has-toc .layout{display:block}
+  main{max-width:none;padding:0;margin:0}
+  body{font-size:11pt;line-height:1.45}
+  a{color:inherit;text-decoration:underline}
+  a[href^="http"]::after{content:" (" attr(href) ")";font-size:.85em;color:var(--muted);word-break:break-all}
+  pre,blockquote,table,figure,img,.dir-index{page-break-inside:avoid;break-inside:avoid}
+  pre{white-space:pre-wrap;word-break:break-word;border:1px solid var(--border)}
+  h1,h2,h3,h4,h5,h6{page-break-after:avoid;break-after:avoid}
+  h1{page-break-before:auto}
+}
 h1,h2,h3,h4,h5,h6{margin:1.6em 0 .6em;line-height:1.25;font-weight:600}
 h1{font-size:2em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
 h2{font-size:1.5em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
@@ -126,6 +139,19 @@ pre.mermaid{background:none;text-align:center}
     btn.setAttribute("data-theme-value", t);
   }
   apply(current());
+  // Print with the light palette (code highlighting, diagrams), then restore.
+  var beforePrint = null;
+  window.addEventListener("beforeprint", function () {
+    beforePrint = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "light");
+    document.dispatchEvent(new CustomEvent("mds:theme"));
+  });
+  window.addEventListener("afterprint", function () {
+    if (beforePrint) document.documentElement.setAttribute("data-theme", beforePrint);
+    else document.documentElement.removeAttribute("data-theme");
+    beforePrint = null;
+    document.dispatchEvent(new CustomEvent("mds:theme"));
+  });
   btn.addEventListener("click", function () {
     var next = order[(order.indexOf(current()) + 1) % order.length];
     try { localStorage.setItem("mds-theme", next); } catch (e) {}

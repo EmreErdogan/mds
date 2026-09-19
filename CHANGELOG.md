@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-19
+
+### Added
+- Print stylesheet: printing or saving as PDF hides the top bar, table of
+  contents and buttons, uses a light palette, shows external link URLs and
+  keeps code blocks and headings from splitting across pages.
+
 ## [0.14.0] - 2026-09-16
 
 ### Added

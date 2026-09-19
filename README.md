@@ -110,6 +110,8 @@ or `mds serve config` to serve it.
   wide screens, a "Contents" button in the top bar on narrow ones. Type to
   filter headings, Enter jumps to the first match; `t` or `/` focuses the
   filter. A back-to-top button appears after scrolling down.
+- Printing (or "Save as PDF") gives a clean, light-palette page without the
+  navigation, with external link URLs shown inline.
 - YAML front matter (`---` block at the top) is hidden; its `title` field, if
   present, becomes the page title.
 - ```mermaid blocks are rendered as diagrams (needs internet access in the

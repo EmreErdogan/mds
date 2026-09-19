@@ -283,3 +283,11 @@ func TestTheme(t *testing.T) {
 		t.Error("dark theme not applied to html element")
 	}
 }
+
+func TestPrintStyles(t *testing.T) {
+	s, _ := New(Options{Root: testRoot(t)})
+	_, body := get(t, s, "/README.md")
+	if !strings.Contains(body, "@media print{") || !strings.Contains(body, ".totop,.anchor,.theme-btn,.toc-btn{display:none!important}") {
+		t.Error("print styles missing")
+	}
+}
