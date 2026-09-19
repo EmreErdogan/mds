@@ -118,8 +118,12 @@ or `mds serve config` to serve it.
   present, becomes the page title.
 - ```mermaid blocks are rendered as diagrams (needs internet access in the
   browser: mermaid.js is loaded from a CDN on pages that contain a diagram).
-- Fenced code blocks are syntax-highlighted; the palette follows the system
-  light/dark preference.
+- Fenced code blocks are syntax-highlighted.
+- Light and dark palettes. `theme` picks the server default (`auto` follows
+  the system); readers can override it with the switcher in the top bar, and
+  the choice is remembered per browser.
+- Hover a heading to reveal its `#` anchor link; following an anchor scrolls
+  smoothly and keeps the heading clear of the sticky top bar.
 - Pages reload automatically when the file you are viewing (or the directory
   listing) changes on disk. `--no-reload` turns this off.
 - Append `?raw` to any markdown URL to see the source.
