@@ -34,6 +34,11 @@ type Options struct {
 	// Index, if set, is the absolute path of a single markdown file that is
 	// rendered at "/". Directory listings are disabled in this mode.
 	Index string
+	// Content, if set, is in-memory markdown (e.g. from stdin) rendered at
+	// "/". Nothing else is served and live reload is unavailable.
+	Content []byte
+	// ContentName is the display name for Content.
+	ContentName string
 	// Types restricts served files to these extensions (lowercase, no dot).
 	// Empty means all files are served.
 	Types []string
@@ -65,6 +70,8 @@ type Server struct {
 	dirIndex bool
 	toc      bool
 	theme    string
+	content  []byte
+	cname    string
 }
 
 // New creates a Server from opts.
@@ -74,6 +81,13 @@ func New(opts Options) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden, toc: opts.TOC, theme: opts.Theme}
+	if opts.Content != nil {
+		s.content, s.cname = opts.Content, opts.ContentName
+		if s.cname == "" {
+			s.cname = "stdin"
+		}
+		opts.Reload = false
+	}
 	for _, pat := range opts.Exclude {
 		if _, err := path.Match(pat, ""); err != nil {
 			return nil, fmt.Errorf("invalid exclude pattern %q: %w", pat, err)
@@ -159,6 +173,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlPath := path.Clean("/" + r.URL.Path)
+	if s.content != nil {
+		if urlPath != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.URL.Query().Has("raw") {
+			w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+			_, _ = w.Write(s.content)
+			return
+		}
+		s.renderMarkdown(w, s.content, s.cname, "/"+s.cname, "/?raw", false)
+		return
+	}
 	if urlPath == eventsPath {
 		s.serveEvents(w, r)
 		return
@@ -248,6 +275,12 @@ func (s *Server) serveMarkdown(w http.ResponseWriter, fsPath, urlPath, rawURL st
 		http.Error(w, "cannot read file", http.StatusInternalServerError)
 		return
 	}
+	s.renderMarkdown(w, src, filepath.Base(fsPath), urlPath, rawURL, s.index == "")
+}
+
+// renderMarkdown renders src as a page. name is the title fallback; withRoot
+// controls whether breadcrumbs link back to the served root.
+func (s *Server) renderMarkdown(w http.ResponseWriter, src []byte, name, urlPath, rawURL string, withRoot bool) {
 	res, err := render.Markdown(src)
 	if err != nil {
 		http.Error(w, "render error: "+err.Error(), http.StatusInternalServerError)
@@ -255,7 +288,7 @@ func (s *Server) serveMarkdown(w http.ResponseWriter, fsPath, urlPath, rawURL st
 	}
 	title := res.Title
 	if title == "" {
-		title = filepath.Base(fsPath)
+		title = name
 	}
 	var toc []tocEntry
 	if s.toc {
@@ -263,7 +296,7 @@ func (s *Server) serveMarkdown(w http.ResponseWriter, fsPath, urlPath, rawURL st
 	}
 	s.render(w, page{
 		Title:   title,
-		Crumbs:  crumbs(urlPath, s.index == ""),
+		Crumbs:  crumbs(urlPath, withRoot),
 		Content: template.HTML(res.HTML),
 		RawURL:  rawURL,
 		Mermaid: bytes.Contains(res.HTML, []byte(`class="language-mermaid"`)),

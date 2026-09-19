@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-19
+
+### Added
+- `mds -` renders markdown from standard input, e.g.
+  `git show HEAD~1:README.md | mds -`. Live reload is off in this mode.
+
 ## [0.15.0] - 2026-09-19
 
 ### Added

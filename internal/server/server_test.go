@@ -291,3 +291,29 @@ func TestPrintStyles(t *testing.T) {
 		t.Error("print styles missing")
 	}
 }
+
+func TestStdinContent(t *testing.T) {
+	s, err := New(Options{Root: t.TempDir(), Content: []byte("# From Pipe\n\ntext\n"), Reload: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, body := get(t, s, "/")
+	if code != 200 || !strings.Contains(body, "<title>From Pipe</title>") {
+		t.Errorf("/: %d %s", code, body[:min(80, len(body))])
+	}
+	if strings.Contains(body, "/_mds/events") {
+		t.Error("reload script present for in-memory content")
+	}
+	if code, body := get(t, s, "/?raw"); code != 200 || !strings.HasPrefix(body, "# From Pipe") {
+		t.Errorf("/?raw: %d", code)
+	}
+	for _, p := range []string{"/other.md", "/sub/", "/_mds/events?path=/"} {
+		if code, _ := get(t, s, p); code != 404 {
+			t.Errorf("%s: got %d, want 404", p, code)
+		}
+	}
+	untitled, _ := New(Options{Root: t.TempDir(), Content: []byte("no heading")})
+	if _, body := get(t, untitled, "/"); !strings.Contains(body, "<title>stdin</title>") {
+		t.Error("fallback title should be stdin")
+	}
+}

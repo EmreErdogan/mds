@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -27,6 +28,7 @@ func printUsage() {
 
 Usage:
   mds [flags] <file.md | directory>
+  mds [flags] -             Render markdown from standard input
   mds serve [flags] <path>  Same as above; use when the path is named like a
                             command (e.g. a directory called "config")
   mds config [directory]    Show effective settings and where they come from
@@ -63,6 +65,7 @@ Environment: MDS_HOST, MDS_PORT, MDS_TYPES, MDS_EXCLUDE, MDS_HIDDEN,
 Examples:
   mds README.md
   mds ./docs
+  git show HEAD~1:README.md | mds -
   mds -p 3000 -t md,png ./notes
   mds -x node_modules,dist ./project
   MDS_HOST=127.0.0.1 mds ./notes   # local only
@@ -142,17 +145,35 @@ func main() {
 		os.Exit(2)
 	}
 
-	target, err := filepath.Abs(positional[0])
-	if err != nil {
-		fatal(err)
-	}
-	info, err := os.Stat(target)
-	if err != nil {
-		fatal(err)
-	}
-	root, indexFile := target, ""
-	if !info.IsDir() {
-		root, indexFile = filepath.Dir(target), target
+	var (
+		target, root, indexFile string
+		content                 []byte
+	)
+	if positional[0] == "-" {
+		if info, err := os.Stdin.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			fatal(fmt.Errorf("nothing to read: stdin is a terminal (try: cat file.md | mds -)"))
+		}
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			fatal(err)
+		}
+		content = data
+		target = "stdin"
+		root, _ = os.Getwd()
+	} else {
+		var err error
+		target, err = filepath.Abs(positional[0])
+		if err != nil {
+			fatal(err)
+		}
+		info, err := os.Stat(target)
+		if err != nil {
+			fatal(err)
+		}
+		root, indexFile = target, ""
+		if !info.IsDir() {
+			root, indexFile = filepath.Dir(target), target
+		}
 	}
 
 	cfg, src, err := config.Load(root)
@@ -197,6 +218,7 @@ func main() {
 	handler, err := server.New(server.Options{
 		Root:     root,
 		Index:    indexFile,
+		Content:  content,
 		Types:    cfg.Types,
 		Exclude:  cfg.Exclude,
 		Hidden:   cfg.Hidden,

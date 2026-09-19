@@ -8,6 +8,7 @@ mds ./docs                 # serve a directory with listings
 mds -t md,png ./docs       # serve only .md and .png files
 mds -x node_modules ./app  # skip node_modules
 mds -p 3000 ./docs         # custom port
+git show HEAD~1:README.md | mds -   # render from stdin
 ```
 
 ## Install
@@ -35,6 +36,7 @@ mds update
 
 ```
 mds [flags] <file.md | directory>
+mds [flags] -              Render markdown from standard input
 mds serve [flags] <path>   Same thing; use when the path is named like a
                            command, e.g. a directory called "config"
 
