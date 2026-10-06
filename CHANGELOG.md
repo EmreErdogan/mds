@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-06
+
 ### Added
 - Directories that hold an `index.html` and no README now serve it instead of
   the listing, so a static site folder (build output, coverage report) opens
