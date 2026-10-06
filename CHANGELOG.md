@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-06
+
 ### Added
 - Search in directory mode: a search box in the top bar (shortcut `s`) finds
   files by name and text files by content, case-insensitively, and lists the
