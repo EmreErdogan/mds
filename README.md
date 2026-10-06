@@ -136,6 +136,12 @@ or `mds serve config` to serve it.
   smoothly and keeps the heading clear of the sticky top bar.
 - Pages reload automatically when the file you are viewing (or the directory
   listing) changes on disk. `--no-reload` turns this off.
+- HTML files reload too: mds adds a small script to them as they are served,
+  and the page reloads when a file next to it or next to one of its local
+  stylesheets, scripts or images changes. The file on disk is not touched;
+  `?raw` or `--no-reload` serves it byte for byte.
+- `mds page.html` serves a single HTML file as-is, with the files around it
+  available for its assets.
 - Append `?raw` to any markdown URL to see the source.
 - In single-file mode the file is served at `/`; images and other assets next
   to it resolve normally.

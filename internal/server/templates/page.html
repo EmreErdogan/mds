@@ -277,18 +277,32 @@ pre.mermaid{background:none;text-align:center}
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 })();
 </script>{{end}}
-{{if .Reload}}<script>
-(function () {
-  var wasDown = false;
-  function connect() {
-    var es = new EventSource("/_mds/events?path=" + encodeURIComponent(location.pathname));
-    es.addEventListener("reload", function () { location.reload(); });
-    es.onopen = function () { if (wasDown) location.reload(); };
-    es.onerror = function () { wasDown = true; };
-  }
-  connect();
-})();
-</script>{{end}}
+{{if .Reload}}{{template "reload" false}}{{end}}
 </body>
 </html>
+{{define "reload"}}<script>
+(function () {
+  var paths = {};
+  function watch(p) { try { paths[decodeURIComponent(p)] = 1; } catch (e) {} }
+  watch(location.pathname);
+{{/* A plain HTML page also reloads when a file next to it or next to one of
+     its local stylesheets, scripts or images changes. */}}{{if .}}  function watchDir(url) {
+    try {
+      var u = new URL(url, location.href);
+      if (u.origin === location.origin) watch(u.pathname.replace(/[^\/]*$/, ""));
+    } catch (e) {}
+  }
+  watchDir(location.href);
+  var els = document.querySelectorAll("link[href],script[src],img[src]");
+  for (var i = 0; i < els.length; i++) watchDir(els[i].href || els[i].src);
+{{end}}  var query = Object.keys(paths).slice(0, 16).map(function (p) {
+    return "path=" + encodeURIComponent(p);
+  }).join("&");
+  var wasDown = false;
+  var es = new EventSource("/_mds/events?" + query);
+  es.addEventListener("reload", function () { location.reload(); });
+  es.onopen = function () { if (wasDown) location.reload(); };
+  es.onerror = function () { wasDown = true; };
+})();
+</script>{{end}}
 {{define "tocbody"}}<input class="filter" type="search" placeholder="Filter headings" aria-label="Filter headings"><ol>{{range .}}<li class="l{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}</ol><div class="empty">No matching headings</div>{{end}}

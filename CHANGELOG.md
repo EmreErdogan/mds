@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Live reload for HTML files: a served `.html` / `.htm` page reloads when a
+  file next to it, or next to one of its local stylesheets, scripts or
+  images, changes. The script is added while serving; `?raw` or `--no-reload`
+  returns the file untouched.
+
+### Fixed
+- `mds page.html` serves the HTML file as-is instead of rendering it as
+  markdown.
+- Live reload works for files whose names contain spaces or non-ASCII
+  characters.
+
 ## [0.17.0] - 2026-10-06
 
 ### Added

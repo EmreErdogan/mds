@@ -22,6 +22,9 @@ import (
 // eventsPath is the reserved URL for the live-reload event stream.
 const eventsPath = "/_mds/events"
 
+// maxEventPaths caps how many paths one event stream may watch.
+const maxEventPaths = 16
+
 //go:embed templates/*
 var templateFS embed.FS
 
@@ -213,6 +216,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, s.index)
 			return
 		}
+		if !render.IsMarkdown(s.index) {
+			s.serveFile(w, r, s.index)
+			return
+		}
 		s.serveMarkdown(w, s.index, "/"+filepath.Base(s.index), "/?raw")
 		return
 	}
@@ -239,7 +246,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if !r.URL.Query().Has("list") {
 			if name := s.htmlIndex(fsPath); name != "" {
-				serveFile(w, r, filepath.Join(fsPath, name))
+				s.serveFile(w, r, filepath.Join(fsPath, name))
 				return
 			}
 		}
@@ -255,12 +262,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.serveMarkdown(w, fsPath, urlPath, urlPath+"?raw")
 		return
 	}
-	serveFile(w, r, fsPath)
+	s.serveFile(w, r, fsPath)
 }
 
-// serveFile sends a file as-is. Unlike http.ServeFile it does not redirect
-// ".../index.html" to its directory, which may show something else.
-func serveFile(w http.ResponseWriter, r *http.Request, fsPath string) {
+// serveFile sends a file as-is, except that HTML pages get the live-reload
+// script when reload is on ("?raw" skips that). Unlike http.ServeFile it does
+// not redirect ".../index.html" to its directory, which may show something
+// else.
+func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, fsPath string) {
+	if s.hub != nil && isHTML(fsPath) && !r.URL.Query().Has("raw") {
+		s.serveHTML(w, r, fsPath)
+		return
+	}
 	f, err := os.Open(fsPath)
 	if err != nil {
 		http.NotFound(w, r)
@@ -273,6 +286,38 @@ func serveFile(w http.ResponseWriter, r *http.Request, fsPath string) {
 		return
 	}
 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+}
+
+func isHTML(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".html", ".htm":
+		return true
+	}
+	return false
+}
+
+// serveHTML sends an HTML file with the live-reload script added before
+// </body>, or at the end when there is none.
+func (s *Server) serveHTML(w http.ResponseWriter, r *http.Request, fsPath string) {
+	src, err := os.ReadFile(fsPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	var script bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&script, "reload", true); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	at := bytes.LastIndex(bytes.ToLower(src), []byte("</body>"))
+	if at < 0 {
+		at = len(src)
+	}
+	out := make([]byte, 0, len(src)+script.Len())
+	out = append(append(append(out, src[:at]...), script.Bytes()...), src[at:]...)
+	// The page must be refetched on every reload, so no validators.
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeContent(w, r, filepath.Base(fsPath), time.Time{}, bytes.NewReader(out))
 }
 
 // allowedType reports whether a file passes the types filter.
@@ -407,8 +452,8 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 	})
 }
 
-// serveEvents streams a server-sent "reload" event whenever the file or
-// directory behind the "path" query parameter changes.
+// serveEvents streams a server-sent "reload" event whenever a file or
+// directory behind one of the "path" query parameters changes.
 func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 	if s.hub == nil {
 		http.NotFound(w, r)
@@ -419,13 +464,35 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	target := s.resolve(r.URL.Query().Get("path"))
-	if target == "" {
+	ch := make(chan struct{}, 1)
+	done := make(chan struct{})
+	defer close(done)
+	watched := 0
+	for _, p := range r.URL.Query()["path"] {
+		target := s.resolve(p)
+		if target == "" {
+			continue
+		}
+		sub, cancel := s.hub.Subscribe(target)
+		defer cancel()
+		go func() {
+			select {
+			case <-sub:
+				select {
+				case ch <- struct{}{}:
+				default:
+				}
+			case <-done:
+			}
+		}()
+		if watched++; watched == maxEventPaths {
+			break
+		}
+	}
+	if watched == 0 {
 		http.NotFound(w, r)
 		return
 	}
-	ch, cancel := s.hub.Subscribe(target)
-	defer cancel()
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

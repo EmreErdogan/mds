@@ -390,3 +390,95 @@ func TestHTMLIndex(t *testing.T) {
 		t.Error("index.html served although html is filtered out")
 	}
 }
+
+func TestHTMLReload(t *testing.T) {
+	root := t.TempDir()
+	for name, body := range map[string]string{
+		"index.html":    "<html><body><p>home</p></BODY></html>",
+		"bare.html":     "<p>bare</p>",
+		"css/style.css": "p{}",
+		"a b.md":        "# spaced",
+	} {
+		p := filepath.Join(root, name)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := New(Options{Root: root, Reload: true, DirIndex: IndexReadme})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	_, body := get(t, s, "/")
+	if at := strings.Index(body, "/_mds/events"); at < 0 || at > strings.Index(body, "</BODY>") {
+		t.Errorf("script not injected before </body>: %q", body)
+	}
+	if !strings.HasPrefix(body, "<html><body><p>home</p><script>") {
+		t.Errorf("page content changed: %q", body)
+	}
+	if _, body := get(t, s, "/bare.html"); !strings.HasPrefix(body, "<p>bare</p><script>") {
+		t.Errorf("script not appended: %q", body)
+	}
+	if _, body := get(t, s, "/index.html?raw"); body != "<html><body><p>home</p></BODY></html>" {
+		t.Errorf("?raw altered the file: %q", body)
+	}
+	if _, body := get(t, s, "/css/style.css"); body != "p{}" {
+		t.Errorf("non-HTML file altered: %q", body)
+	}
+	off, _ := New(Options{Root: root, DirIndex: IndexReadme})
+	if _, body := get(t, off, "/"); strings.Contains(body, "<script>") {
+		t.Error("script injected although reload is off")
+	}
+
+	// One stream watches several paths; unknown ones are skipped.
+	srv := httptest.NewServer(s)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/_mds/events?path=/&path=/missing/&path=/css/&path=/a%20b.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	buf := make([]byte, 64)
+	if _, err := resp.Body.Read(buf); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "css", "style.css"), []byte("p{color:red}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(resp.Body)
+		done <- string(b)
+	}()
+	select {
+	case body := <-done:
+		if !strings.Contains(body, "event: reload") {
+			t.Errorf("no reload event, got %q", body)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for reload event")
+	}
+	if resp, err := http.Get(srv.URL + "/_mds/events?path=/missing/"); err != nil || resp.StatusCode != 404 {
+		t.Errorf("unknown path: %v %v", resp, err)
+	}
+}
+
+func TestHTMLFileMode(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "page.html")
+	if err := os.WriteFile(file, []byte("<p>just html</p>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(Options{Root: root, Index: file})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code, body := get(t, s, "/"); code != 200 || body != "<p>just html</p>" {
+		t.Errorf("got %d %q", code, body)
+	}
+}
