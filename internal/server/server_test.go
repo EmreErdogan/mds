@@ -482,3 +482,84 @@ func TestHTMLFileMode(t *testing.T) {
 		t.Errorf("got %d %q", code, body)
 	}
 }
+
+func TestSearch(t *testing.T) {
+	root := t.TempDir()
+	for name, body := range map[string]string{
+		"guide.md":            "# Guide\n\nInstall the Widget first.\nwidget again\nWIDGET three\nwidget four\n",
+		"docs/widget-api.md":  "# API\n\nnothing here\n",
+		"docs/notes.txt":      "a note about <b>widgets</b> & more\n",
+		"docs/a b.md":         "çay WIDGET içer\n",
+		"bin/blob.dat":        "widget\x00binary",
+		".secret/keys.md":     "widget secret",
+		"node_modules/pkg.md": "widget dependency",
+	} {
+		p := filepath.Join(root, name)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := New(Options{Root: root, Exclude: []string{"node_modules"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, body := get(t, s, "/"); !strings.Contains(body, `action="/_mds/search"`) {
+		t.Error("listing has no search box")
+	}
+	code, body := get(t, s, "/_mds/search?q=Widget")
+	if code != 200 {
+		t.Fatalf("got %d", code)
+	}
+	for _, want := range []string{
+		"4 results",
+		`value="Widget"`,
+		`href="/guide.md"`,
+		`href="/guide.md#:~:text=Widget"`,
+		"Install the <mark>Widget</mark> first.",
+		"+1 more matching lines",
+		`href="/docs/widget-api.md"`,
+		"&lt;b&gt;<mark>widget</mark>s&lt;/b&gt; &amp; more",
+		`href="/docs/a%20b.md"`,
+		"çay <mark>WIDGET</mark> içer",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("results missing %q", want)
+		}
+	}
+	for _, not := range []string{"blob.dat", "keys.md", "pkg.md", "/_mds/events"} {
+		if strings.Contains(body, not) {
+			t.Errorf("results contain %q", not)
+		}
+	}
+	// The file matched by name comes before content-only matches.
+	if strings.Index(body, "widget-api.md") > strings.Index(body, `href="/guide.md"`) {
+		t.Error("name match not listed first")
+	}
+	// A slash matches against the path; names alone do not match directories' files.
+	if _, body := get(t, s, "/_mds/search?q=docs/wid"); !strings.Contains(body, "1 result ") || !strings.Contains(body, "widget-api.md") {
+		t.Errorf("path query: %q", body)
+	}
+	if _, body := get(t, s, "/_mds/search?q=docs"); !strings.Contains(body, `href="/docs/"`) || strings.Contains(body, "notes.txt") {
+		t.Error("directory name query should list only the directory")
+	}
+	if _, body := get(t, s, "/_mds/search?q=zzzz"); !strings.Contains(body, "No results") {
+		t.Error("missing empty state")
+	}
+	if code, body := get(t, s, "/_mds/search"); code != 200 || !strings.Contains(body, "Type in the search box") {
+		t.Errorf("empty query: %d", code)
+	}
+
+	typed, _ := New(Options{Root: root, Types: []string{"txt"}})
+	if _, body := get(t, typed, "/_mds/search?q=widget"); !strings.Contains(body, "notes.txt") || strings.Contains(body, "guide.md") {
+		t.Error("types filter not applied to search")
+	}
+	single, _ := New(Options{Root: root, Index: filepath.Join(root, "guide.md")})
+	if code, _ := get(t, single, "/_mds/search?q=widget"); code != 404 {
+		t.Errorf("search in single-file mode: %d", code)
+	}
+	if _, body := get(t, single, "/"); strings.Contains(body, `action="/_mds/search"`) {
+		t.Error("search box shown in single-file mode")
+	}
+}

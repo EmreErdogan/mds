@@ -147,6 +147,9 @@ type page struct {
 	Mermaid      bool // page has mermaid code blocks; load the renderer
 	TOC          []tocEntry
 	Theme        string // "" for auto, else "light" or "dark"
+	Search       bool   // show the search box (directory mode)
+	Query        string // current search query, shown in the box
+	noReload     bool   // nothing on disk backs this page
 	HighlightCSS template.CSS
 }
 
@@ -204,6 +207,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if urlPath == eventsPath {
 		s.serveEvents(w, r)
+		return
+	}
+	if urlPath == searchPath && s.index == "" {
+		s.serveSearch(w, r)
 		return
 	}
 	if s.blockedPath(urlPath) {
@@ -539,7 +546,8 @@ func (s *Server) resolve(urlPath string) string {
 }
 
 func (s *Server) render(w http.ResponseWriter, p page) {
-	p.Reload = s.hub != nil
+	p.Reload = s.hub != nil && !p.noReload
+	p.Search = s.index == "" && s.content == nil
 	p.HighlightCSS = template.CSS(render.HighlightCSS())
 	if s.theme == "light" || s.theme == "dark" {
 		p.Theme = s.theme

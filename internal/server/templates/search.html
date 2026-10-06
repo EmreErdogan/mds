@@ -1,0 +1,4 @@
+{{if .Query}}<p class="search-summary">{{.Summary}} for <strong>{{.Query}}</strong></p>
+<ul class="results">
+{{range .Hits}}<li><a class="file" href="{{.URL}}">{{.Path}}</a>{{range .Lines}}<a class="line" href="{{.URL}}"><span class="num">{{.Num}}</span><span>{{.Before}}<mark>{{.Match}}</mark>{{.After}}</span></a>{{end}}{{if .More}}<span class="more">+{{.More}} more matching lines</span>{{end}}</li>
+{{end}}</ul>{{else}}<p class="search-summary">Type in the search box to find files by name or content.</p>{{end}}

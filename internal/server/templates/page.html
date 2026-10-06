@@ -102,12 +102,26 @@ pre.mermaid{background:none;text-align:center}
 .dir-index{margin-top:2rem;border:1px solid var(--border);border-radius:6px;padding:0 1.5rem 1rem}
 .dir-index>header{margin:0 -1.5rem 1.5rem;padding:.5rem 1.5rem;border-bottom:1px solid var(--border);background:var(--code-bg);font-size:.85rem}
 .dir-index>header a{text-decoration:none;color:var(--fg);font-weight:600}
+nav .search{margin:0;min-width:0}
+nav .search input{width:11rem;max-width:100%;padding:.2rem .5rem;font:inherit;color:var(--fg);background:var(--code-bg);border:1px solid var(--border);border-radius:6px}
+nav .search input:focus{outline:none;border-color:var(--link)}
+.search-summary{color:var(--muted)}
+.results{list-style:none;padding:0;margin:0}
+.results li{padding:.6rem 0;border-top:1px solid var(--border)}
+.results a{display:block;text-decoration:none}
+.results .file{font-weight:600}.results .file:hover{text-decoration:underline}
+.results .line{display:flex;gap:.75rem;color:var(--fg);font:.85rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.results .line:hover{background:var(--code-bg)}
+.results .num{flex:none;min-width:2.5rem;text-align:right;color:var(--muted)}
+.results .more{color:var(--muted);font-size:.85rem}
+mark{background:#ffd33d;color:#1f2328;border-radius:2px}
 </style>
 </head>
 <body{{if .TOC}} class="has-toc"{{end}}>
 <nav>
   <div>{{range $i, $c := .Crumbs}}{{if $i}}<span class="sep">/</span>{{end}}{{if $c.URL}}<a href="{{$c.URL}}">{{$c.Name}}</a>{{else}}<span>{{$c.Name}}</span>{{end}}{{end}}</div>
   <div class="right">
+    {{if .Search}}<form class="search" action="/_mds/search" role="search"><input type="search" name="q" value="{{.Query}}" placeholder="Search" aria-label="Search files" title="Search file names and contents (s)"></form>{{end}}
     {{if .RawURL}}<a href="{{.RawURL}}">raw</a>{{end}}
     <button type="button" class="theme-btn" data-server-theme="{{.Theme}}" aria-label="Theme"></button>
     {{if .TOC}}<button type="button" class="toc-btn" aria-expanded="false" aria-controls="toc-menu" title="Contents (t)">&#9776; Contents</button>{{end}}
@@ -276,6 +290,14 @@ pre.mermaid{background:none;text-align:center}
   document.addEventListener("mds:theme", render);
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 })();
+</script>{{end}}
+{{if .Search}}<script>
+document.addEventListener("keydown", function (e) {
+  var tag = document.activeElement && document.activeElement.tagName;
+  if (e.key !== "s" || tag === "INPUT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) return;
+  document.querySelector("nav .search input").select();
+  e.preventDefault();
+});
 </script>{{end}}
 {{if .Reload}}{{template "reload" false}}{{end}}
 </body>

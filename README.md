@@ -134,6 +134,11 @@ or `mds serve config` to serve it.
   the choice is remembered per browser.
 - Hover a heading to reveal its `#` anchor link; following an anchor scrolls
   smoothly and keeps the heading clear of the sticky top bar.
+- In directory mode the top bar has a search box (press `s` to focus it). It
+  finds files and directories by name and text files by content, ignoring
+  case, and shows the matching lines; a query containing `/` is matched
+  against the path. Search honors `types`, `exclude` and `hidden`, skips
+  binary files and files over 1 MB, and shows at most 100 files.
 - Pages reload automatically when the file you are viewing (or the directory
   listing) changes on disk. `--no-reload` turns this off.
 - HTML files reload too: mds adds a small script to them as they are served,

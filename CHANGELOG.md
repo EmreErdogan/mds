@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Search in directory mode: a search box in the top bar (shortcut `s`) finds
+  files by name and text files by content, case-insensitively, and lists the
+  matching lines with links that jump to the match. It honors `types`,
+  `exclude` and `hidden`.
+
 ## [0.18.0] - 2026-10-06
 
 ### Added
