@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-06
+
 ### Added
 - Live reload for HTML files: a served `.html` / `.htm` page reloads when a
   file next to it, or next to one of its local stylesheets, scripts or
