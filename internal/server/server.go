@@ -51,13 +51,26 @@ type Options struct {
 	// Reload enables live reload: pages subscribe to changes of the file or
 	// directory they show and reload themselves.
 	Reload bool
-	// DirIndex renders README.md or index.md below directory listings.
-	DirIndex bool
+	// DirIndex selects what a directory shows: IndexList (the default),
+	// IndexReadme or IndexHTML.
+	DirIndex string
 	// TOC shows a table of contents on rendered markdown pages.
 	TOC bool
 	// Theme is "auto", "light" or "dark".
 	Theme string
 }
+
+// Directory index modes. A "?list" query on a directory always shows its
+// listing.
+const (
+	// IndexList shows only the listing.
+	IndexList = "list"
+	// IndexReadme shows the listing with README.md / index.md rendered below
+	// it; a directory without one serves its index.html instead.
+	IndexReadme = "readme"
+	// IndexHTML serves index.html when present, otherwise as IndexReadme.
+	IndexHTML = "html"
+)
 
 // Server is an http.Handler serving a directory or a single markdown file.
 type Server struct {
@@ -67,7 +80,7 @@ type Server struct {
 	exclude  []string
 	hidden   bool
 	hub      *watch.Hub // nil when live reload is off
-	dirIndex bool
+	dirIndex string
 	toc      bool
 	theme    string
 	content  []byte
@@ -217,8 +230,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !strings.HasSuffix(r.URL.Path, "/") {
-			http.Redirect(w, r, urlPath+"/", http.StatusMovedPermanently)
+			target := urlPath + "/"
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
 			return
+		}
+		if !r.URL.Query().Has("list") {
+			if name := s.htmlIndex(fsPath); name != "" {
+				serveFile(w, r, filepath.Join(fsPath, name))
+				return
+			}
 		}
 		s.serveListing(w, r, fsPath, urlPath)
 		return
@@ -232,7 +255,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.serveMarkdown(w, fsPath, urlPath, urlPath+"?raw")
 		return
 	}
-	http.ServeFile(w, r, fsPath)
+	serveFile(w, r, fsPath)
+}
+
+// serveFile sends a file as-is. Unlike http.ServeFile it does not redirect
+// ".../index.html" to its directory, which may show something else.
+func serveFile(w http.ResponseWriter, r *http.Request, fsPath string) {
+	f, err := os.Open(fsPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || info.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 }
 
 // allowedType reports whether a file passes the types filter.
@@ -346,7 +386,7 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if s.dirIndex {
+	if s.dirIndex == IndexReadme || s.dirIndex == IndexHTML {
 		if name := s.indexFile(fsPath); name != "" {
 			if src, err := os.ReadFile(filepath.Join(fsPath, name)); err == nil {
 				if res, err := render.Markdown(src); err == nil {
@@ -458,6 +498,28 @@ func (s *Server) indexFile(dir string) string {
 		}
 	}
 	return ""
+}
+
+// htmlIndex returns "index.html" if dir has one that should be served in
+// place of the listing, or "".
+func (s *Server) htmlIndex(dir string) string {
+	const name = "index.html"
+	switch s.dirIndex {
+	case IndexHTML:
+	case IndexReadme:
+		if s.indexFile(dir) != "" {
+			return ""
+		}
+	default:
+		return ""
+	}
+	if !s.allowedType(name) || s.blockedName(name) {
+		return ""
+	}
+	if info, err := os.Stat(filepath.Join(dir, name)); err != nil || info.IsDir() {
+		return ""
+	}
+	return name
 }
 
 // crumbs builds breadcrumb links for urlPath. When withRoot is false only the

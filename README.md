@@ -49,8 +49,10 @@ mds serve [flags] <path>   Same thing; use when the path is named like a
   -t, --types <list>   Only serve these file types, e.g. "md,txt,png"
   -x, --exclude <list> Glob patterns for names to skip (default ".git")
       --hidden         Also serve dot-prefixed files and directories
-      --index          Render README.md / index.md under directory listings
-      --no-index       Disable --index
+      --index          Directories show the listing with README.md / index.md
+                       below it; without a README, index.html (default)
+      --html-index     Directories show index.html when they have one
+      --no-index       Directories always show just the listing
   -h, --help           Show help
 
 mds config [dir]       Show effective settings and where each comes from
@@ -80,7 +82,7 @@ types = ["md", "png"]              # only serve these file types
 exclude = [".git", "node_modules"] # glob patterns for names to skip
 hidden = false                     # serve dot-prefixed files too
 reload = true                      # live reload
-index = true                       # render README.md / index.md under listings
+index = "readme"                   # what a directory shows: readme, html or list
 open = false                       # open a browser after starting
 toc = true                         # table of contents on rendered pages
 theme = "auto"                     # auto, light or dark (readers can override
@@ -100,8 +102,16 @@ or `mds serve config` to serve it.
   startup. On untrusted networks bind locally with `--host 127.0.0.1`.
 - To stay local-only by default, put `host = "127.0.0.1"` in the global config
   or `export MDS_HOST=127.0.0.1` in your shell rc.
-- With `index = true` (or `--index`), a directory that contains `README.md` or
-  `index.md` shows it rendered below the listing, like GitHub.
+- What a directory shows is set by `index` (`MDS_INDEX`, or the flags below):
+  - `"readme"` (default, `--index`): the listing with `README.md` or `index.md`
+    rendered below it, like GitHub. A directory without one serves its
+    `index.html` if it has one, so a folder holding a static site just works.
+  - `"html"` (`--html-index`): `index.html` wins when present; otherwise as
+    `"readme"`.
+  - `"list"` (`--no-index`): always just the listing.
+
+  Add `?list` to a directory URL to see its listing regardless, and open
+  `index.html` by name to view it where a README takes precedence.
 - In directory mode, markdown files are rendered and everything else is served
   as-is. Dot-prefixed files are skipped unless `--hidden` is given; names
   matching an `exclude` pattern are never listed or served. Patterns use shell

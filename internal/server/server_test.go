@@ -162,7 +162,7 @@ func TestNoReload(t *testing.T) {
 
 func TestDirIndex(t *testing.T) {
 	root := testRoot(t)
-	s, err := New(Options{Root: root, DirIndex: true})
+	s, err := New(Options{Root: root, DirIndex: IndexReadme})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestDirIndex(t *testing.T) {
 	if _, body := get(t, off, "/"); strings.Contains(body, `class="dir-index"`) {
 		t.Error("index rendered while disabled")
 	}
-	filtered, _ := New(Options{Root: root, DirIndex: true, Types: []string{"txt"}})
+	filtered, _ := New(Options{Root: root, DirIndex: IndexReadme, Types: []string{"txt"}})
 	if _, body := get(t, filtered, "/"); strings.Contains(body, `class="dir-index"`) {
 		t.Error("index rendered although md is filtered out")
 	}
@@ -315,5 +315,78 @@ func TestStdinContent(t *testing.T) {
 	untitled, _ := New(Options{Root: t.TempDir(), Content: []byte("no heading")})
 	if _, body := get(t, untitled, "/"); !strings.Contains(body, "<title>stdin</title>") {
 		t.Error("fallback title should be stdin")
+	}
+}
+
+func TestHTMLIndex(t *testing.T) {
+	root := t.TempDir()
+	write := func(name, body string) {
+		t.Helper()
+		p := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("README.md", "# Root Readme\n")
+	write("index.html", "<p>root site</p>")
+	write("site/index.html", "<p>sub site</p>")
+	write("site/app.js", "//js")
+	write("plain/notes.txt", "notes")
+
+	const listing, readme = `class="listing"`, `class="dir-index"`
+	cases := []struct {
+		mode, path string
+		want       []string
+		not        []string
+	}{
+		// README wins over index.html and is shown under the listing.
+		{IndexReadme, "/", []string{listing, readme, `href="/index.html"`}, []string{"root site"}},
+		{IndexReadme, "/site/", []string{"sub site"}, []string{listing}},
+		{IndexReadme, "/site/?list", []string{listing, `href="/site/app.js"`}, []string{"sub site"}},
+		{IndexReadme, "/plain/", []string{listing}, nil},
+		{IndexHTML, "/", []string{"root site"}, []string{listing}},
+		{IndexHTML, "/?list", []string{listing, readme}, []string{"root site"}},
+		{IndexHTML, "/site/", []string{"sub site"}, nil},
+		{IndexList, "/", []string{listing}, []string{readme, "root site"}},
+		{IndexList, "/site/", []string{listing}, []string{"sub site"}},
+		// index.html stays reachable by name in every mode.
+		{IndexReadme, "/index.html", []string{"root site"}, nil},
+		{IndexHTML, "/site/index.html", []string{"sub site"}, nil},
+		{IndexList, "/site/index.html", []string{"sub site"}, nil},
+	}
+	for _, c := range cases {
+		s, err := New(Options{Root: root, DirIndex: c.mode})
+		if err != nil {
+			t.Fatal(err)
+		}
+		code, body := get(t, s, c.path)
+		if code != 200 {
+			t.Errorf("%s %s: got %d", c.mode, c.path, code)
+		}
+		for _, w := range c.want {
+			if !strings.Contains(body, w) {
+				t.Errorf("%s %s: body missing %q", c.mode, c.path, w)
+			}
+		}
+		for _, n := range c.not {
+			if strings.Contains(body, n) {
+				t.Errorf("%s %s: body has %q", c.mode, c.path, n)
+			}
+		}
+	}
+
+	// The slash redirect keeps the query, and filters apply to index.html.
+	s, _ := New(Options{Root: root, DirIndex: IndexHTML})
+	rec := httptest.NewRecorder()
+	s.ServeHTTP(rec, httptest.NewRequest("GET", "/site?list", nil))
+	if loc := rec.Header().Get("Location"); rec.Code != 301 || loc != "/site/?list" {
+		t.Errorf("redirect: %d %q", rec.Code, loc)
+	}
+	filtered, _ := New(Options{Root: root, DirIndex: IndexHTML, Types: []string{"md"}})
+	if _, body := get(t, filtered, "/site/"); strings.Contains(body, "sub site") {
+		t.Error("index.html served although html is filtered out")
 	}
 }

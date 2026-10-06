@@ -22,7 +22,7 @@ type Config struct {
 	Exclude []string // glob patterns for names to hide and refuse to serve
 	Hidden  bool     // serve dot-prefixed files and directories
 	Reload  bool     // live reload
-	Index   bool     // render README.md / index.md under directory listings
+	Index   string   // what a directory shows: "readme", "html" or "list"
 	Open    bool     // open a browser after the server starts
 	TOC     bool     // show a table of contents on rendered pages
 	Theme   string   // "auto", "light" or "dark"
@@ -30,6 +30,11 @@ type Config struct {
 
 // Themes lists the accepted theme values.
 var Themes = []string{"auto", "light", "dark"}
+
+// IndexModes lists the accepted index values. "readme" shows the listing with
+// README.md / index.md rendered below it and falls back to index.html when
+// there is no README; "html" prefers index.html; "list" shows only listings.
+var IndexModes = []string{"readme", "html", "list"}
 
 // Keys lists setting names in display order.
 var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open", "toc", "theme"}
@@ -39,7 +44,7 @@ type Sources map[string]string
 
 // Defaults returns the built-in configuration.
 func Defaults() Config {
-	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true, TOC: true, Theme: "auto"}
+	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true, Index: "readme", TOC: true, Theme: "auto"}
 }
 
 // GlobalPath returns the global config file location:
@@ -70,7 +75,7 @@ type file struct {
 	Exclude *[]string `toml:"exclude"`
 	Hidden  *bool     `toml:"hidden"`
 	Reload  *bool     `toml:"reload"`
-	Index   *bool     `toml:"index"`
+	Index   any       `toml:"index"` // mode name, or a legacy boolean
 	Open    *bool     `toml:"open"`
 	TOC     *bool     `toml:"toc"`
 	Theme   *string   `toml:"theme"`
@@ -140,7 +145,11 @@ func applyFile(cfg *Config, src Sources, label, path string) error {
 		cfg.Reload, src["reload"] = *f.Reload, where
 	}
 	if f.Index != nil {
-		cfg.Index, src["index"] = *f.Index, where
+		mode, err := indexFromFile(f.Index)
+		if err != nil {
+			return fmt.Errorf("%s: %w", path, err)
+		}
+		cfg.Index, src["index"] = mode, where
 	}
 	if f.Open != nil {
 		cfg.Open, src["open"] = *f.Open, where
@@ -180,6 +189,13 @@ func applyEnv(cfg *Config, src Sources) error {
 		}
 		cfg.Theme, src["theme"] = v, "env MDS_THEME"
 	}
+	if v, ok := os.LookupEnv("MDS_INDEX"); ok && v != "" {
+		mode, err := ParseIndex(v)
+		if err != nil {
+			return fmt.Errorf("MDS_INDEX: %w", err)
+		}
+		cfg.Index, src["index"] = mode, "env MDS_INDEX"
+	}
 	for _, e := range []struct {
 		name string
 		dst  *bool
@@ -187,7 +203,6 @@ func applyEnv(cfg *Config, src Sources) error {
 	}{
 		{"MDS_HIDDEN", &cfg.Hidden, "hidden"},
 		{"MDS_RELOAD", &cfg.Reload, "reload"},
-		{"MDS_INDEX", &cfg.Index, "index"},
 		{"MDS_OPEN", &cfg.Open, "open"},
 		{"MDS_TOC", &cfg.TOC, "toc"},
 	} {
@@ -212,6 +227,37 @@ func CheckTheme(v string) error {
 		}
 	}
 	return fmt.Errorf("invalid theme %q (want auto, light or dark)", v)
+}
+
+// ParseIndex validates an index mode. Booleans are accepted for settings that
+// predate the modes: true means "readme", false means "list".
+func ParseIndex(v string) (string, error) {
+	for _, m := range IndexModes {
+		if v == m {
+			return v, nil
+		}
+	}
+	if b, err := strconv.ParseBool(v); err == nil {
+		return indexFromBool(b), nil
+	}
+	return "", fmt.Errorf("invalid index %q (want readme, html or list)", v)
+}
+
+func indexFromBool(b bool) string {
+	if b {
+		return "readme"
+	}
+	return "list"
+}
+
+func indexFromFile(v any) (string, error) {
+	switch v := v.(type) {
+	case bool:
+		return indexFromBool(v), nil
+	case string:
+		return ParseIndex(v)
+	}
+	return "", fmt.Errorf("invalid index %v (want readme, html or list)", v)
 }
 
 func checkPort(n int) error {
@@ -276,7 +322,7 @@ func Format(cfg Config, key string) string {
 	case "reload":
 		return strconv.FormatBool(cfg.Reload)
 	case "index":
-		return strconv.FormatBool(cfg.Index)
+		return cfg.Index
 	case "open":
 		return strconv.FormatBool(cfg.Open)
 	case "toc":
@@ -310,8 +356,13 @@ const Template = `# mds configuration
 # Reload pages in the browser when files change.
 #reload = true
 
-# Render README.md / index.md below directory listings.
-#index = false
+# What a directory shows:
+#   "readme"  the listing with README.md / index.md rendered below it;
+#             index.html when there is no README
+#   "html"    index.html when present, otherwise as "readme"
+#   "list"    always just the listing
+# Add ?list to a directory URL to see its listing regardless.
+#index = "readme"
 
 # Open the local URL in a browser after starting.
 #open = false

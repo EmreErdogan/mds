@@ -52,8 +52,11 @@ Files (directory mode):
   -x, --exclude <list>  Glob patterns for names to skip, e.g. "node_modules,*.log".
                         Default: ".git". Excluded names are never served.
       --hidden          Also serve dot-prefixed files and directories
-      --index           Render README.md / index.md under directory listings
-      --no-index        Disable --index
+      --index           Directories show the listing with README.md / index.md
+                        rendered below it; without a README, index.html (default)
+      --html-index      Directories show index.html when they have one
+      --no-index        Directories always show just the listing
+                        (add ?list to a directory URL to see its listing anyway)
 
   -h, --help            Show this help
 
@@ -113,7 +116,7 @@ func main() {
 		port                                   int
 		host, types, exclude, theme            string
 		index, noIndex, noReload, hidden, open bool
-		noTOC                                  bool
+		noTOC, htmlIndex                       bool
 	)
 	fs.BoolVar(&noTOC, "no-toc", false, "")
 	fs.StringVar(&theme, "theme", "", "")
@@ -127,6 +130,7 @@ func main() {
 	fs.BoolVar(&hidden, "hidden", false, "")
 	fs.BoolVar(&open, "open", false, "")
 	fs.BoolVar(&index, "index", false, "")
+	fs.BoolVar(&htmlIndex, "html-index", false, "")
 	fs.BoolVar(&noIndex, "no-index", false, "")
 	fs.BoolVar(&noReload, "no-reload", false, "")
 
@@ -181,6 +185,7 @@ func main() {
 		fatal(err)
 	}
 	// Flags win over everything else, but only when given explicitly.
+	indexFlags := 0
 	fs.Visit(func(f *flag.Flag) {
 		flagSrc := "--" + f.Name
 		if len(f.Name) == 1 {
@@ -199,10 +204,10 @@ func main() {
 			cfg.Hidden, src["hidden"] = true, flagSrc
 		case "open":
 			cfg.Open, src["open"] = true, flagSrc
-		case "index":
-			cfg.Index, src["index"] = true, flagSrc
-		case "no-index":
-			cfg.Index, src["index"] = false, flagSrc
+		case "index", "html-index", "no-index":
+			mode := map[string]string{"index": "readme", "html-index": "html", "no-index": "list"}[f.Name]
+			cfg.Index, src["index"] = mode, flagSrc
+			indexFlags++
 		case "no-reload":
 			cfg.Reload, src["reload"] = false, flagSrc
 		case "no-toc":
@@ -214,6 +219,10 @@ func main() {
 			cfg.Theme, src["theme"] = theme, flagSrc
 		}
 	})
+
+	if indexFlags > 1 {
+		fatal(fmt.Errorf("use only one of --index, --html-index and --no-index"))
+	}
 
 	handler, err := server.New(server.Options{
 		Root:     root,

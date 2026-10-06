@@ -22,7 +22,7 @@ func TestPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Host != "0.0.0.0" || cfg.Port != 8080 || !cfg.Reload || cfg.Index || cfg.Hidden || cfg.Open || !cfg.TOC || cfg.Theme != "auto" || src["host"] != "default" {
+	if cfg.Host != "0.0.0.0" || cfg.Port != 8080 || !cfg.Reload || cfg.Index != "readme" || cfg.Hidden || cfg.Open || !cfg.TOC || cfg.Theme != "auto" || src["host"] != "default" {
 		t.Errorf("defaults wrong: %+v %v", cfg, src)
 	}
 	if len(cfg.Exclude) != 1 || cfg.Exclude[0] != ".git" {
@@ -31,13 +31,13 @@ func TestPrecedence(t *testing.T) {
 
 	// Global sets host and port; local overrides port and sets ext.
 	os.MkdirAll(filepath.Join(global, "mds"), 0o755)
-	os.WriteFile(filepath.Join(global, "mds", "config.toml"), []byte("host = \"127.0.0.1\"\nport = 9000\nindex = true\n"), 0o644)
+	os.WriteFile(filepath.Join(global, "mds", "config.toml"), []byte("host = \"127.0.0.1\"\nport = 9000\nindex = false\n"), 0o644)
 	os.WriteFile(filepath.Join(local, ".mds.toml"), []byte("port = 9001\ntypes = [\"MD\", \".png\"]\nexclude = [\"node_modules\", \"*.log\"]\n"), 0o644)
 	cfg, src, err = Load(local)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Host != "127.0.0.1" || !cfg.Index {
+	if cfg.Host != "127.0.0.1" || cfg.Index != "list" {
 		t.Errorf("global not applied: %+v", cfg)
 	}
 	if cfg.Port != 9001 || len(cfg.Types) != 2 || cfg.Types[0] != "md" || cfg.Types[1] != "png" {
@@ -76,6 +76,33 @@ func TestPrecedence(t *testing.T) {
 	if cfg, _, err := Load(local); err != nil || cfg.Theme != "dark" {
 		t.Errorf("theme from file: %v %q", err, cfg.Theme)
 	}
+	// index takes a mode name; booleans from older configs still work.
+	for in, want := range map[string]string{`"html"`: "html", `"list"`: "list", "true": "readme", "false": "list"} {
+		os.WriteFile(filepath.Join(local, ".mds.toml"), []byte("index = "+in+"\n"), 0o644)
+		if cfg, _, err := Load(local); err != nil || cfg.Index != want {
+			t.Errorf("index = %s: got %q, %v; want %q", in, cfg.Index, err, want)
+		}
+	}
+	for _, in := range []string{`"site"`, "3"} {
+		os.WriteFile(filepath.Join(local, ".mds.toml"), []byte("index = "+in+"\n"), 0o644)
+		if _, _, err := Load(local); err == nil {
+			t.Errorf("expected error for index = %s", in)
+		}
+	}
+	os.WriteFile(filepath.Join(local, ".mds.toml"), nil, 0o644)
+	t.Setenv("MDS_INDEX", "html")
+	if cfg, src, err := Load(local); err != nil || cfg.Index != "html" || src["index"] != "env MDS_INDEX" {
+		t.Errorf("MDS_INDEX=html: %q %v %v", cfg.Index, src["index"], err)
+	}
+	t.Setenv("MDS_INDEX", "false")
+	if cfg, _, err := Load(local); err != nil || cfg.Index != "list" {
+		t.Errorf("MDS_INDEX=false: %q %v", cfg.Index, err)
+	}
+	t.Setenv("MDS_INDEX", "site")
+	if _, _, err := Load(local); err == nil {
+		t.Error("expected error for bad MDS_INDEX")
+	}
+	os.Unsetenv("MDS_INDEX")
 	os.WriteFile(filepath.Join(local, ".mds.toml"), []byte("prot = 1\n"), 0o644)
 	if _, _, err := Load(local); err == nil {
 		t.Error("expected error for unknown key")
@@ -121,7 +148,7 @@ func TestInitTemplateIsValidAndComplete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("uncommented template does not load: %v", err)
 	}
-	if cfg.Port != 8080 || cfg.Host != "0.0.0.0" || !cfg.Reload || !cfg.TOC || cfg.Theme != "auto" {
+	if cfg.Port != 8080 || cfg.Host != "0.0.0.0" || !cfg.Reload || cfg.Index != "readme" || !cfg.TOC || cfg.Theme != "auto" {
 		t.Errorf("template defaults differ: %+v", cfg)
 	}
 }

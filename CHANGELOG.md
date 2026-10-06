@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Directories that hold an `index.html` and no README now serve it instead of
+  the listing, so a static site folder (build output, coverage report) opens
+  as a site. `--html-index`, `index = "html"` or `MDS_INDEX=html` makes
+  `index.html` win even when a README is present.
+- `?list` on a directory URL always shows its listing.
+
+### Changed
+- The `index` setting is now a mode: `"readme"` (default), `"html"` or
+  `"list"`. `README.md` / `index.md` is rendered below directory listings by
+  default; it used to be opt-in. `--no-index`, `index = "list"` or
+  `MDS_INDEX=list` shows only the listing. Boolean values still work:
+  `true` is `"readme"`, `false` is `"list"`.
+
+### Fixed
+- `index.html` files can be opened; requests for them used to redirect back
+  to the directory listing.
+
 ## [0.16.0] - 2026-09-19
 
 ### Added
