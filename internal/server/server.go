@@ -316,7 +316,7 @@ func (s *Server) serveHTML(w http.ResponseWriter, r *http.Request, fsPath string
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	at := bytes.LastIndex(bytes.ToLower(src), []byte("</body>"))
+	at := lastIndexFold(src, "</body>")
 	if at < 0 {
 		at = len(src)
 	}
@@ -325,6 +325,18 @@ func (s *Server) serveHTML(w http.ResponseWriter, r *http.Request, fsPath string
 	// The page must be refetched on every reload, so no validators.
 	w.Header().Set("Cache-Control", "no-cache")
 	http.ServeContent(w, r, filepath.Base(fsPath), time.Time{}, bytes.NewReader(out))
+}
+
+// lastIndexFold returns the last index of tag in src, ignoring ASCII case.
+// Lowercasing src first would not do: it changes the byte length of some
+// non-ASCII letters, so the offsets would no longer fit src.
+func lastIndexFold(src []byte, tag string) int {
+	for i := len(src) - len(tag); i >= 0; i-- {
+		if bytes.EqualFold(src[i:i+len(tag)], []byte(tag)) {
+			return i
+		}
+	}
+	return -1
 }
 
 // allowedType reports whether a file passes the types filter.

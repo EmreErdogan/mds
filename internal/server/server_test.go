@@ -396,6 +396,7 @@ func TestHTMLReload(t *testing.T) {
 	for name, body := range map[string]string{
 		"index.html":    "<html><body><p>home</p></BODY></html>",
 		"bare.html":     "<p>bare</p>",
+		"tr.html":       "<html><body><p>İSTANBUL İÇİN</p><script>1</script>\n</body></html>",
 		"css/style.css": "p{}",
 		"a b.md":        "# spaced",
 	} {
@@ -420,6 +421,11 @@ func TestHTMLReload(t *testing.T) {
 	}
 	if _, body := get(t, s, "/bare.html"); !strings.HasPrefix(body, "<p>bare</p><script>") {
 		t.Errorf("script not appended: %q", body)
+	}
+	// Letters whose lowercase form has another byte length must not shift
+	// the insertion point.
+	if _, body := get(t, s, "/tr.html"); !strings.HasPrefix(body, "<html><body><p>İSTANBUL İÇİN</p><script>1</script>\n<script>") || !strings.HasSuffix(body, "</script></body></html>") {
+		t.Errorf("script not injected right before </body>: %q", body)
 	}
 	if _, body := get(t, s, "/index.html?raw"); body != "<html><body><p>home</p></BODY></html>" {
 		t.Errorf("?raw altered the file: %q", body)
