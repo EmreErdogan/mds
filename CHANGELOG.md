@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-10-11
+
 ### Fixed
 - Live reload no longer corrupts HTML pages containing letters such as `İ`:
   the reload script was inserted a few bytes before `</body>`, splitting
