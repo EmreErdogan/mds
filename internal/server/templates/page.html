@@ -17,105 +17,7 @@
 {{.HighlightCSS}}
 </style>
 <style>
-/* page styles come last so pre/code backgrounds win over chroma's */
-:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a}
-:root[data-theme=light]{color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}}
-:root[data-theme=dark]{color-scheme:dark;--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
-html{scroll-behavior:smooth}
-nav{position:sticky;top:0;z-index:20;background:var(--bg);display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1.25rem;border-bottom:1px solid var(--border);font-size:.9rem;color:var(--muted)}
-nav .right{display:flex;align-items:center;gap:1rem}
-h1,h2,h3,h4,h5,h6{scroll-margin-top:3.5rem;position:relative}
-.anchor{position:absolute;left:-1.4em;top:0;padding-right:.3em;color:var(--muted);text-decoration:none;opacity:0;font-weight:400}
-h1:hover>.anchor,h2:hover>.anchor,h3:hover>.anchor,h4:hover>.anchor,h5:hover>.anchor,h6:hover>.anchor,.anchor:focus{opacity:1}
-@media (max-width:700px){.anchor{position:static;padding-left:.3em}}
-nav a{color:var(--link);text-decoration:none}nav a:hover{text-decoration:underline}
-nav .sep{margin:0 .35rem}
-main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem;min-width:0}
-.toc{font-size:.85rem;line-height:1.5}
-.toc ol{list-style:none;margin:0;padding:0}
-.toc li{margin:.15rem 0}.toc li[hidden]{display:none}
-.toc .l3{padding-left:.9rem}.toc .l4{padding-left:1.8rem}
-.toc a{color:var(--muted);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;padding:.1rem .3rem;margin:0 -.3rem}
-.toc a:hover,.toc a.active{color:var(--link)}
-.toc a.active{background:var(--code-bg)}
-.toc .filter{width:100%;box-sizing:border-box;margin:0 0 .5rem;padding:.35rem .5rem;font:inherit;color:var(--fg);background:var(--code-bg);border:1px solid var(--border);border-radius:6px}
-.toc .filter:focus{outline:none;border-color:var(--link)}
-.toc .empty{color:var(--muted);font-style:italic;display:none}
-.toc.filtered-empty .empty{display:block}
-.theme-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .5rem;cursor:pointer;line-height:1}
-.theme-btn:hover{color:var(--fg);background:var(--code-bg)}
-.toc-btn{display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .55rem;cursor:pointer}
-.toc-btn:hover,.toc-btn[aria-expanded=true]{color:var(--fg);background:var(--code-bg)}
-.toc-menu{display:none;position:fixed;top:2.9rem;right:.75rem;width:min(22rem,calc(100vw - 1.5rem));max-height:calc(100vh - 4rem);overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:30}
-.toc-menu.open{display:block}
-.toc-side{display:none}
-.totop{position:fixed;right:1.25rem;bottom:1.25rem;width:2.6rem;height:2.6rem;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:1.2rem;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:20}
-.totop.show{opacity:1;pointer-events:auto}
-.totop:hover{color:var(--link)}
-@media (min-width:1200px){
-  body.has-toc .toc-btn,body.has-toc .toc-menu{display:none}
-  body.has-toc .layout{display:grid;grid-template-columns:minmax(0,56rem) 14rem;justify-content:center;column-gap:2rem}
-  body.has-toc .layout>main{grid-column:1;max-width:none;margin:0}
-  .toc-side{display:block;grid-column:2;position:sticky;top:3rem;align-self:start;max-height:calc(100vh - 3rem);overflow:auto;padding:2rem 0}
-  .toc-side .title{color:var(--muted);font-weight:600;margin-bottom:.4rem}
-}
-@media print{
-  :root,:root[data-theme=dark]{color-scheme:light;--bg:#fff;--fg:#000;--muted:#555;--border:#bbb;--code-bg:#f3f3f3;--link:#000;--quote:#444}
-  nav,.toc-menu,.toc-side,.totop,.anchor,.theme-btn,.toc-btn{display:none!important}
-  body.has-toc .layout{display:block}
-  main{max-width:none;padding:0;margin:0}
-  body{font-size:11pt;line-height:1.45}
-  a{color:inherit;text-decoration:underline}
-  a[href^="http"]::after{content:" (" attr(href) ")";font-size:.85em;color:var(--muted);word-break:break-all}
-  pre,blockquote,table,figure,img,.dir-index{page-break-inside:avoid;break-inside:avoid}
-  pre{white-space:pre-wrap;word-break:break-word;border:1px solid var(--border)}
-  h1,h2,h3,h4,h5,h6{page-break-after:avoid;break-after:avoid}
-  h1{page-break-before:auto}
-}
-h1,h2,h3,h4,h5,h6{margin:1.6em 0 .6em;line-height:1.25;font-weight:600}
-h1{font-size:2em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
-h2{font-size:1.5em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
-h1:first-child{margin-top:0}
-a{color:var(--link)}
-p,ul,ol,blockquote,pre,table{margin:0 0 1em}
-li+li{margin-top:.25em}
-code,pre{font:.875em/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-code{background:var(--code-bg);padding:.15em .35em;border-radius:4px}
-pre{background:var(--code-bg);padding:1em;border-radius:6px;overflow:auto}
-pre code{background:none;padding:0;font-size:1em}
-blockquote{border-left:4px solid var(--border);color:var(--quote);padding:0 1em}
-table{border-collapse:collapse;display:block;overflow:auto;max-width:100%}
-th,td{border:1px solid var(--border);padding:.4em .8em}
-th{font-weight:600;background:var(--code-bg)}
-img{max-width:100%}
-hr{border:0;border-top:1px solid var(--border);margin:2em 0}
-input[type=checkbox]{margin-right:.4em}
-.listing{list-style:none;padding:0;margin:0;border:1px solid var(--border);border-radius:6px}
-.listing li{display:flex;justify-content:space-between;padding:.5rem .9rem;border-top:1px solid var(--border)}
-.listing li:first-child{border-top:0}
-.listing a{text-decoration:none}.listing a:hover{text-decoration:underline}
-.listing .size{color:var(--muted);font-size:.85rem}
-pre.mermaid{background:none;text-align:center}
-.dir-index{margin-top:2rem;border:1px solid var(--border);border-radius:6px;padding:0 1.5rem 1rem}
-.dir-index>header{margin:0 -1.5rem 1.5rem;padding:.5rem 1.5rem;border-bottom:1px solid var(--border);background:var(--code-bg);font-size:.85rem}
-.dir-index>header a{text-decoration:none;color:var(--fg);font-weight:600}
-nav .search{margin:0;min-width:0}
-nav .search input{width:11rem;max-width:100%;padding:.2rem .5rem;font:inherit;color:var(--fg);background:var(--code-bg);border:1px solid var(--border);border-radius:6px}
-nav .search input:focus{outline:none;border-color:var(--link)}
-.search-summary{color:var(--muted)}
-.results{list-style:none;padding:0;margin:0}
-.results li{padding:.6rem 0;border-top:1px solid var(--border)}
-.results a{display:block;text-decoration:none}
-.results .file{font-weight:600}.results .file:hover{text-decoration:underline}
-.results .line{display:flex;gap:.75rem;color:var(--fg);font:.85rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
-.results .line:hover{background:var(--code-bg)}
-.results .num{flex:none;min-width:2.5rem;text-align:right;color:var(--muted)}
-.results .more{color:var(--muted);font-size:.85rem}
-mark{background:#ffd33d;color:#1f2328;border-radius:2px}
-</style>
+{{template "css"}}</style>
 </head>
 <body{{if .TOC}} class="has-toc"{{end}}>
 <nav>
@@ -123,6 +25,12 @@ mark{background:#ffd33d;color:#1f2328;border-radius:2px}
   <div class="right">
     {{if .Search}}<form class="search" action="/_mds/search" role="search"><input type="search" name="q" value="{{.Query}}" placeholder="Search" aria-label="Search files" title="Search file names and contents (s)"></form>{{end}}
     {{if .RawURL}}<a href="{{.RawURL}}">raw</a>{{end}}
+    {{if .Download}}<details class="dl"><summary title="Download this page">download</summary><div class="dl-menu">
+      <button type="button" class="dl-pdf" title="Opens the print dialog; choose &quot;Save as PDF&quot;">PDF<span class="ext">print</span></button>
+      <a href="{{.Download}}?download=md" download>Markdown<span class="ext">.md</span></a>
+      <a href="{{.Download}}?download=html" download data-diagrams>HTML<span class="ext">.html</span></a>
+      <a href="{{.Download}}?download=docx" download data-diagrams>Word<span class="ext">.docx</span></a>
+    </div></details>{{end}}
     <button type="button" class="theme-btn" data-server-theme="{{.Theme}}" aria-label="Theme"></button>
     {{if .TOC}}<button type="button" class="toc-btn" aria-expanded="false" aria-controls="toc-menu" title="Contents (t)">&#9776; Contents</button>{{end}}
   </div>
@@ -184,6 +92,15 @@ mark{background:#ffd33d;color:#1f2328;border-radius:2px}
   function onScroll() { top.classList.toggle("show", window.scrollY > window.innerHeight); }
   window.addEventListener("scroll", onScroll, { passive: true }); onScroll();
   top.addEventListener("click", function () { window.scrollTo({ top: 0 }); });
+
+  // Download menu. PDF goes through the print dialog and its print styles.
+  var dl = document.querySelector(".dl");
+  if (dl) {
+    dl.querySelector(".dl-pdf").addEventListener("click", function () { dl.open = false; window.print(); });
+    dl.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", function () { dl.open = false; }); });
+    document.addEventListener("click", function (e) { if (dl.open && !dl.contains(e.target)) dl.open = false; });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && dl.open) { dl.open = false; dl.querySelector("summary").focus(); } });
+  }
 })();
 </script>
 {{if .TOC}}<script>
@@ -267,30 +184,7 @@ mark{background:#ffd33d;color:#1f2328;border-radius:2px}
   });
 })();
 </script>{{end}}
-{{if .Mermaid}}<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-<script>
-(function () {
-  if (typeof mermaid === "undefined") return; // offline: blocks stay as code
-  var blocks = [];
-  document.querySelectorAll("code.language-mermaid").forEach(function (code) {
-    var pre = document.createElement("pre");
-    pre.className = "mermaid";
-    pre.textContent = code.textContent;
-    code.parentNode.replaceWith(pre);
-    blocks.push({ el: pre, src: code.textContent });
-  });
-  function render() {
-    var forced = document.documentElement.getAttribute("data-theme");
-    var dark = forced ? forced === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    blocks.forEach(function (b) { b.el.removeAttribute("data-processed"); b.el.textContent = b.src; });
-    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
-    mermaid.run({ querySelector: "pre.mermaid" });
-  }
-  render();
-  document.addEventListener("mds:theme", render);
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-})();
-</script>{{end}}
+{{if .Mermaid}}{{template "mermaid"}}{{end}}
 {{if .Search}}<script>
 document.addEventListener("keydown", function (e) {
   var tag = document.activeElement && document.activeElement.tagName;
@@ -328,3 +222,211 @@ document.addEventListener("keydown", function (e) {
 })();
 </script>{{end}}
 {{define "tocbody"}}<input class="filter" type="search" placeholder="Filter headings" aria-label="Filter headings"><ol>{{range .}}<li class="l{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}</ol><div class="empty">No matching headings</div>{{end}}
+{{define "mermaid"}}<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (typeof mermaid === "undefined") return; // offline: blocks stay as code
+  var blocks = [];
+  document.querySelectorAll("code.language-mermaid").forEach(function (code) {
+    var pre = document.createElement("pre");
+    pre.className = "mermaid";
+    pre.textContent = code.textContent;
+    code.parentNode.replaceWith(pre);
+    blocks.push({ el: pre, src: code.textContent });
+  });
+  function configure() {
+    var forced = document.documentElement.getAttribute("data-theme");
+    var dark = forced ? forced === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default", htmlLabels: true, flowchart: { htmlLabels: true } });
+  }
+  function render() {
+    blocks.forEach(function (b) { b.el.removeAttribute("data-processed"); b.el.textContent = b.src; });
+    configure();
+    mermaid.run({ querySelector: "pre.mermaid" });
+  }
+  render();
+  document.addEventListener("mds:theme", render);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+
+  // HTML and Word downloads carry the diagrams as pictures, drawn again in the
+  // light theme. For Word the labels are plain SVG text, which Word can show
+  // and a canvas can turn into the PNG that other readers need.
+  var exportID = 0;
+  function picture(svg, png) {
+    return new Promise(function (resolve) {
+      var el = new DOMParser().parseFromString(svg, "image/svg+xml").documentElement;
+      var box = el.viewBox && el.viewBox.baseVal;
+      var w = Math.ceil(box && box.width || parseFloat(el.getAttribute("width")) || 0);
+      var h = Math.ceil(box && box.height || parseFloat(el.getAttribute("height")) || 0);
+      el.setAttribute("width", w);
+      el.setAttribute("height", h);
+      el.style.removeProperty("max-width");
+      var out = { svg: new XMLSerializer().serializeToString(el), png: "", width: w, height: h };
+      if (!png) return resolve(out);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement("canvas"), scale = 2;
+          c.width = w * scale; c.height = h * scale;
+          var ctx = c.getContext("2d");
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, c.width, c.height);
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          out.png = c.toDataURL("image/png").split(",")[1];
+        } catch (e) {} // a tainted canvas: Word gets the diagram as code
+        resolve(out);
+      };
+      img.onerror = function () { resolve(out); };
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(out.svg);
+    });
+  }
+  async function pictures(word) {
+    var out = [];
+    mermaid.initialize({ startOnLoad: false, theme: "default", htmlLabels: !word, flowchart: { htmlLabels: !word } });
+    try {
+      for (var i = 0; i < blocks.length; i++) {
+        try {
+          var r = await mermaid.render("mds-export-" + (++exportID), blocks[i].src);
+          var p = await picture(r.svg, word);
+          p.src = blocks[i].src;
+          out.push(p);
+        } catch (e) {} // a diagram that does not render stays code
+      }
+    } finally {
+      configure();
+    }
+    return out;
+  }
+  document.querySelectorAll(".dl-menu a[data-diagrams]").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      document.documentElement.style.cursor = "progress";
+      pictures(a.href.indexOf("download=docx") >= 0).then(function (list) {
+        var f = document.createElement("form");
+        f.method = "post";
+        f.action = a.href;
+        f.enctype = "multipart/form-data";
+        f.hidden = true;
+        var field = document.createElement("textarea");
+        field.name = "diagrams";
+        field.value = JSON.stringify(list);
+        f.appendChild(field);
+        document.body.appendChild(f);
+        f.submit();
+        f.remove();
+      }, function () { location.href = a.href; }).finally(function () {
+        document.documentElement.style.cursor = "";
+      });
+    });
+  });
+})();
+</script>{{end}}
+{{define "css"}}/* page styles come last so pre/code backgrounds win over chroma's */
+:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a}
+:root[data-theme=light]{color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+html{scroll-behavior:smooth}
+nav{position:sticky;top:0;z-index:20;background:var(--bg);display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1.25rem;border-bottom:1px solid var(--border);font-size:.9rem;color:var(--muted)}
+nav .right{display:flex;align-items:center;gap:1rem}
+h1,h2,h3,h4,h5,h6{scroll-margin-top:3.5rem;position:relative}
+.anchor{position:absolute;left:-1.4em;top:0;padding-right:.3em;color:var(--muted);text-decoration:none;opacity:0;font-weight:400}
+h1:hover>.anchor,h2:hover>.anchor,h3:hover>.anchor,h4:hover>.anchor,h5:hover>.anchor,h6:hover>.anchor,.anchor:focus{opacity:1}
+@media (max-width:700px){.anchor{position:static;padding-left:.3em}}
+nav a{color:var(--link);text-decoration:none}nav a:hover{text-decoration:underline}
+nav .sep{margin:0 .35rem}
+main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem;min-width:0}
+.toc{font-size:.85rem;line-height:1.5}
+.toc ol{list-style:none;margin:0;padding:0}
+.toc li{margin:.15rem 0}.toc li[hidden]{display:none}
+.toc .l3{padding-left:.9rem}.toc .l4{padding-left:1.8rem}
+.toc a{color:var(--muted);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;padding:.1rem .3rem;margin:0 -.3rem}
+.toc a:hover,.toc a.active{color:var(--link)}
+.toc a.active{background:var(--code-bg)}
+.toc .filter{width:100%;box-sizing:border-box;margin:0 0 .5rem;padding:.35rem .5rem;font:inherit;color:var(--fg);background:var(--code-bg);border:1px solid var(--border);border-radius:6px}
+.toc .filter:focus{outline:none;border-color:var(--link)}
+.toc .empty{color:var(--muted);font-style:italic;display:none}
+.toc.filtered-empty .empty{display:block}
+.theme-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .5rem;cursor:pointer;line-height:1}
+.theme-btn:hover{color:var(--fg);background:var(--code-bg)}
+.toc-btn{display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .55rem;cursor:pointer}
+.toc-btn:hover,.toc-btn[aria-expanded=true]{color:var(--fg);background:var(--code-bg)}
+.toc-menu{display:none;position:fixed;top:2.9rem;right:.75rem;width:min(22rem,calc(100vw - 1.5rem));max-height:calc(100vh - 4rem);overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:30}
+.toc-menu.open{display:block}
+.dl{position:relative}
+.dl>summary{list-style:none;cursor:pointer;color:var(--link)}
+.dl>summary::-webkit-details-marker{display:none}
+.dl>summary:hover{text-decoration:underline}
+.dl-menu{position:absolute;right:0;top:calc(100% + .5rem);min-width:10rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.3rem;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:30}
+.dl-menu a,.dl-menu button{display:block;width:100%;text-align:left;padding:.3rem .6rem;border:0;border-radius:4px;background:none;font:inherit;color:var(--fg);cursor:pointer;text-decoration:none}
+.dl-menu a:hover,.dl-menu button:hover{background:var(--code-bg);text-decoration:none}
+.dl-menu .ext{float:right;color:var(--muted);font-size:.8rem;margin-left:1rem}
+.toc-side{display:none}
+.totop{position:fixed;right:1.25rem;bottom:1.25rem;width:2.6rem;height:2.6rem;border-radius:50%;border:1px solid var(--border);background:var(--bg);color:var(--muted);font-size:1.2rem;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:20}
+.totop.show{opacity:1;pointer-events:auto}
+.totop:hover{color:var(--link)}
+@media (min-width:1200px){
+  body.has-toc .toc-btn,body.has-toc .toc-menu{display:none}
+  body.has-toc .layout{display:grid;grid-template-columns:minmax(0,56rem) 14rem;justify-content:center;column-gap:2rem}
+  body.has-toc .layout>main{grid-column:1;max-width:none;margin:0}
+  .toc-side{display:block;grid-column:2;position:sticky;top:3rem;align-self:start;max-height:calc(100vh - 3rem);overflow:auto;padding:2rem 0}
+  .toc-side .title{color:var(--muted);font-weight:600;margin-bottom:.4rem}
+}
+@media print{
+  :root,:root[data-theme=dark]{color-scheme:light;--bg:#fff;--fg:#000;--muted:#555;--border:#bbb;--code-bg:#f3f3f3;--link:#000;--quote:#444}
+  nav,.toc-menu,.toc-side,.totop,.anchor,.theme-btn,.toc-btn,.dl{display:none!important}
+  body.has-toc .layout{display:block}
+  main{max-width:none;padding:0;margin:0}
+  body{font-size:11pt;line-height:1.45}
+  a{color:inherit;text-decoration:underline}
+  a[href^="http"]::after{content:" (" attr(href) ")";font-size:.85em;color:var(--muted);word-break:break-all}
+  pre,blockquote,table,figure,img,.dir-index{page-break-inside:avoid;break-inside:avoid}
+  pre{white-space:pre-wrap;word-break:break-word;border:1px solid var(--border)}
+  h1,h2,h3,h4,h5,h6{page-break-after:avoid;break-after:avoid}
+  h1{page-break-before:auto}
+}
+h1,h2,h3,h4,h5,h6{margin:1.6em 0 .6em;line-height:1.25;font-weight:600}
+h1{font-size:2em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
+h2{font-size:1.5em;padding-bottom:.3em;border-bottom:1px solid var(--border)}
+h1:first-child{margin-top:0}
+a{color:var(--link)}
+p,ul,ol,blockquote,pre,table{margin:0 0 1em}
+li+li{margin-top:.25em}
+code,pre{font:.875em/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+code{background:var(--code-bg);padding:.15em .35em;border-radius:4px}
+pre{background:var(--code-bg);padding:1em;border-radius:6px;overflow:auto}
+pre code{background:none;padding:0;font-size:1em}
+blockquote{border-left:4px solid var(--border);color:var(--quote);padding:0 1em}
+table{border-collapse:collapse;display:block;overflow:auto;max-width:100%}
+th,td{border:1px solid var(--border);padding:.4em .8em}
+th{font-weight:600;background:var(--code-bg)}
+img{max-width:100%}
+hr{border:0;border-top:1px solid var(--border);margin:2em 0}
+input[type=checkbox]{margin-right:.4em}
+.listing{list-style:none;padding:0;margin:0;border:1px solid var(--border);border-radius:6px}
+.listing li{display:flex;justify-content:space-between;padding:.5rem .9rem;border-top:1px solid var(--border)}
+.listing li:first-child{border-top:0}
+.listing a{text-decoration:none}.listing a:hover{text-decoration:underline}
+.listing .size{color:var(--muted);font-size:.85rem}
+pre.mermaid{background:none;text-align:center}
+.diagram{text-align:center}
+.diagram img{height:auto;background:#fff;border-radius:6px}
+.dir-index{margin-top:2rem;border:1px solid var(--border);border-radius:6px;padding:0 1.5rem 1rem}
+.dir-index>header{margin:0 -1.5rem 1.5rem;padding:.5rem 1.5rem;border-bottom:1px solid var(--border);background:var(--code-bg);font-size:.85rem}
+.dir-index>header a{text-decoration:none;color:var(--fg);font-weight:600}
+nav .search{margin:0;min-width:0}
+nav .search input{width:11rem;max-width:100%;padding:.2rem .5rem;font:inherit;color:var(--fg);background:var(--code-bg);border:1px solid var(--border);border-radius:6px}
+nav .search input:focus{outline:none;border-color:var(--link)}
+.search-summary{color:var(--muted)}
+.results{list-style:none;padding:0;margin:0}
+.results li{padding:.6rem 0;border-top:1px solid var(--border)}
+.results a{display:block;text-decoration:none}
+.results .file{font-weight:600}.results .file:hover{text-decoration:underline}
+.results .line{display:flex;gap:.75rem;color:var(--fg);font:.85rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+.results .line:hover{background:var(--code-bg)}
+.results .num{flex:none;min-width:2.5rem;text-align:right;color:var(--muted)}
+.results .more{color:var(--muted);font-size:.85rem}
+mark{background:#ffd33d;color:#1f2328;border-radius:2px}
+{{end}}

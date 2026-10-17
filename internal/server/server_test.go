@@ -1,7 +1,13 @@
 package server
 
 import (
+	"archive/zip"
+	"bytes"
+	"encoding/base64"
+	"image"
+	"image/png"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -287,7 +293,7 @@ func TestTheme(t *testing.T) {
 func TestPrintStyles(t *testing.T) {
 	s, _ := New(Options{Root: testRoot(t)})
 	_, body := get(t, s, "/README.md")
-	if !strings.Contains(body, "@media print{") || !strings.Contains(body, ".totop,.anchor,.theme-btn,.toc-btn{display:none!important}") {
+	if !strings.Contains(body, "@media print{") || !strings.Contains(body, ".totop,.anchor,.theme-btn,.toc-btn,.dl{display:none!important}") {
 		t.Error("print styles missing")
 	}
 }
@@ -567,5 +573,180 @@ func TestSearch(t *testing.T) {
 	}
 	if _, body := get(t, single, "/"); strings.Contains(body, `action="/_mds/search"`) {
 		t.Error("search box shown in single-file mode")
+	}
+}
+
+func TestDownload(t *testing.T) {
+	root := t.TempDir()
+	var pngData bytes.Buffer
+	if err := png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 4, 4))); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string][]byte{
+		"docs/Çalışma notu.md": []byte("# Notes\n\n![pic](../img/pic.png) ![secret](../.private/s.png) ![far](https://example.com/x.png)\n"),
+		"img/pic.png":          pngData.Bytes(),
+		".private/s.png":       pngData.Bytes(),
+	}
+	for name, body := range files {
+		p := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, body, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := New(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fetch := func(url string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
+		return rec
+	}
+	const page = "/docs/%C3%87al%C4%B1%C5%9Fma%20notu.md"
+
+	_, body := get(t, s, page)
+	for _, want := range []string{`class="dl"`, `?download=md`, `?download=html`, `?download=docx`, `class="dl-pdf"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing %q", want)
+		}
+	}
+	if _, body := get(t, s, "/docs/"); strings.Contains(body, `class="dl"`) {
+		t.Error("listing should not offer downloads")
+	}
+
+	rec := fetch(page + "?download=md")
+	if rec.Code != 200 || rec.Body.String() != string(files["docs/Çalışma notu.md"]) {
+		t.Errorf("md: %d %q", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Disposition"); got != "attachment; filename*=utf-8''%C3%87al%C4%B1%C5%9Fma%20notu.md" {
+		t.Errorf("md disposition: %q", got)
+	}
+
+	rec = fetch(page + "?download=html")
+	html := rec.Body.String()
+	if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/html") || !strings.Contains(rec.Header().Get("Content-Disposition"), "notu.html") {
+		t.Errorf("html: %d %v", rec.Code, rec.Header())
+	}
+	if !strings.Contains(html, `<title>Notes</title>`) || !strings.Contains(html, `src="data:image/png;base64,`) {
+		t.Error("html export missing title or inlined image")
+	}
+	if !strings.Contains(html, `src="../.private/s.png"`) || !strings.Contains(html, `src="https://example.com/x.png"`) {
+		t.Error("hidden or remote images should not be inlined")
+	}
+	for _, unwanted := range []string{"<nav>", "/_mds/", `class="theme-btn"`} {
+		if strings.Contains(html, unwanted) {
+			t.Errorf("html export contains %q", unwanted)
+		}
+	}
+
+	rec = fetch(page + "?download=docx")
+	if rec.Code != 200 || rec.Header().Get("Content-Type") != "application/vnd.openxmlformats-officedocument.wordprocessingml.document" {
+		t.Fatalf("docx: %d %v", rec.Code, rec.Header())
+	}
+	data := rec.Body.Bytes()
+	z, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var media []string
+	for _, f := range z.File {
+		if strings.HasPrefix(f.Name, "word/media/") {
+			media = append(media, f.Name)
+		}
+	}
+	if len(media) != 1 {
+		t.Errorf("docx media = %v, want only the visible local image", media)
+	}
+
+	if rec := fetch(page + "?download=exe"); rec.Code != 400 {
+		t.Errorf("unknown format: got %d, want 400", rec.Code)
+	}
+}
+
+func TestDownloadSingleAndStdin(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "one.md")
+	if err := os.WriteFile(file, []byte("# One\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	single, _ := New(Options{Root: root, Index: file})
+	if _, body := get(t, single, "/"); !strings.Contains(body, `href="/?download=docx"`) {
+		t.Error("single-file page should download from /")
+	}
+	rec := httptest.NewRecorder()
+	single.ServeHTTP(rec, httptest.NewRequest("GET", "/?download=md", nil))
+	if rec.Body.String() != "# One\n" || rec.Header().Get("Content-Disposition") != `attachment; filename=one.md` {
+		t.Errorf("single md: %q %v", rec.Body.String(), rec.Header())
+	}
+
+	stdin, _ := New(Options{Root: root, Content: []byte("# Piped\n")})
+	rec = httptest.NewRecorder()
+	stdin.ServeHTTP(rec, httptest.NewRequest("GET", "/?download=docx", nil))
+	if rec.Code != 200 || rec.Header().Get("Content-Disposition") != `attachment; filename=stdin.docx` {
+		t.Errorf("stdin docx: %d %v", rec.Code, rec.Header())
+	}
+}
+
+func TestDownloadDiagrams(t *testing.T) {
+	root := t.TempDir()
+	src := "# D\n\n```mermaid\ngraph LR; A-->B & C\n```\n"
+	if err := os.WriteFile(filepath.Join(root, "d.md"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "n.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := New(Options{Root: root})
+	var pngData bytes.Buffer
+	if err := png.Encode(&pngData, image.NewRGBA(image.Rect(0, 0, 20, 10))); err != nil {
+		t.Fatal(err)
+	}
+	diagrams := `[{"src":"graph LR; A-->B & C\n","svg":"<svg xmlns='http://www.w3.org/2000/svg'/>","png":"` +
+		base64.StdEncoding.EncodeToString(pngData.Bytes()) + `","width":10.4,"height":5}]`
+	post := func(url string) *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		_ = mw.WriteField("diagrams", diagrams)
+		mw.Close()
+		req := httptest.NewRequest("POST", url, &body)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := post("/d.md?download=html")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `<p class="diagram"><img src="data:image/svg+xml;base64,`) ||
+		!strings.Contains(rec.Body.String(), `width="10" height="5"`) {
+		t.Errorf("html: %d", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "mermaid.min.js") {
+		t.Error("export with all diagrams drawn should not load mermaid")
+	}
+	if _, body := get(t, s, "/d.md?download=html"); !strings.Contains(body, `class="language-mermaid"`) {
+		t.Error("a plain GET should keep the diagram as code")
+	}
+
+	rec = post("/d.md?download=docx")
+	data := rec.Body.Bytes()
+	z, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, f := range z.File {
+		names = append(names, f.Name)
+	}
+	if !strings.Contains(strings.Join(names, " "), "word/media/image1.svg") {
+		t.Errorf("docx parts: %v", names)
+	}
+
+	for _, url := range []string{"/d.md", "/d.md?download=docx&raw", "/n.txt?download=md", "/?download=md", "/_mds/search?download=md"} {
+		if rec := post(url); rec.Code != 405 {
+			t.Errorf("POST %s: got %d, want 405", url, rec.Code)
+		}
 	}
 }

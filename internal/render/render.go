@@ -55,10 +55,30 @@ type Result struct {
 	Headings []Heading      // all headings in document order
 }
 
+// Option adjusts how Markdown renders.
+type Option func(*options)
+
+type options struct {
+	image func(dest string) string
+}
+
+// WithImages rewrites image sources: fn gets each image destination and
+// returns its replacement, or "" to keep it.
+func WithImages(fn func(dest string) string) Option {
+	return func(o *options) { o.image = fn }
+}
+
 // Markdown renders GitHub Flavored Markdown to HTML.
-func Markdown(src []byte) (Result, error) {
+func Markdown(src []byte, opts ...Option) (Result, error) {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
 	ctx := parser.NewContext()
 	doc := md.Parser().Parse(text.NewReader(src), parser.WithContext(ctx))
+	if o.image != nil {
+		rewriteImages(doc, o.image)
+	}
 	var buf bytes.Buffer
 	if err := md.Renderer().Render(&buf, src, doc); err != nil {
 		return Result{}, err
@@ -71,6 +91,17 @@ func Markdown(src []byte) (Result, error) {
 		res.Title = firstH1(doc, src)
 	}
 	return res, nil
+}
+
+func rewriteImages(doc ast.Node, fn func(string) string) {
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if img, ok := n.(*ast.Image); ok && entering {
+			if dest := fn(string(img.Destination)); dest != "" {
+				img.Destination = []byte(dest)
+			}
+		}
+		return ast.WalkContinue, nil
+	})
 }
 
 func headings(doc ast.Node, src []byte) []Heading {

@@ -143,6 +143,7 @@ type page struct {
 	Crumbs       []crumb
 	Content      template.HTML
 	RawURL       string
+	Download     string // URL that takes a "?download=" query; "" hides the menu
 	Reload       bool
 	Mermaid      bool // page has mermaid code blocks; load the renderer
 	TOC          []tocEntry
@@ -186,12 +187,19 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+	urlPath := path.Clean("/" + r.URL.Path)
+	switch r.Method {
+	case http.MethodGet, http.MethodHead:
+	case http.MethodPost:
+		// Pages post their rendered diagrams along with a download.
+		if !r.URL.Query().Has("download") || r.URL.Query().Has("raw") || !s.markdownURL(urlPath) {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	urlPath := path.Clean("/" + r.URL.Path)
 	if s.content != nil {
 		if urlPath != "/" {
 			http.NotFound(w, r)
@@ -202,7 +210,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write(s.content)
 			return
 		}
-		s.renderMarkdown(w, s.content, s.cname, "/"+s.cname, "/?raw", false)
+		s.renderMarkdown(w, r, s.content, s.cname, "/"+s.cname, "/", false)
 		return
 	}
 	if urlPath == eventsPath {
@@ -227,7 +235,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.serveFile(w, r, s.index)
 			return
 		}
-		s.serveMarkdown(w, s.index, "/"+filepath.Base(s.index), "/?raw")
+		s.serveMarkdown(w, r, s.index, "/"+filepath.Base(s.index), "/")
 		return
 	}
 
@@ -266,10 +274,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if render.IsMarkdown(info.Name()) && !r.URL.Query().Has("raw") {
-		s.serveMarkdown(w, fsPath, urlPath, urlPath+"?raw")
+		s.serveMarkdown(w, r, fsPath, urlPath, urlPath)
 		return
 	}
 	s.serveFile(w, r, fsPath)
+}
+
+// markdownURL reports whether urlPath names a markdown page: the in-memory
+// content, the single file, or a markdown file in directory mode.
+func (s *Server) markdownURL(urlPath string) bool {
+	switch {
+	case s.content != nil:
+		return urlPath == "/"
+	case s.index != "" && urlPath == "/":
+		return render.IsMarkdown(s.index)
+	}
+	return render.IsMarkdown(urlPath)
 }
 
 // serveFile sends a file as-is, except that HTML pages get the live-reload
@@ -373,39 +393,50 @@ func (s *Server) blockedPath(urlPath string) bool {
 	return false
 }
 
-func (s *Server) serveMarkdown(w http.ResponseWriter, fsPath, urlPath, rawURL string) {
+func (s *Server) serveMarkdown(w http.ResponseWriter, r *http.Request, fsPath, urlPath, selfURL string) {
 	src, err := os.ReadFile(fsPath)
 	if err != nil {
 		http.Error(w, "cannot read file", http.StatusInternalServerError)
 		return
 	}
-	s.renderMarkdown(w, src, filepath.Base(fsPath), urlPath, rawURL, s.index == "")
+	s.renderMarkdown(w, r, src, filepath.Base(fsPath), urlPath, selfURL, s.index == "")
 }
 
-// renderMarkdown renders src as a page. name is the title fallback; withRoot
+// renderMarkdown renders src as a page, or sends it as a file for a
+// "?download=" query. name is the title fallback; urlPath is where relative
+// links resolve from and selfURL is the URL the page is served at; withRoot
 // controls whether breadcrumbs link back to the served root.
-func (s *Server) renderMarkdown(w http.ResponseWriter, src []byte, name, urlPath, rawURL string, withRoot bool) {
+func (s *Server) renderMarkdown(w http.ResponseWriter, r *http.Request, src []byte, name, urlPath, selfURL string, withRoot bool) {
+	if format := r.URL.Query().Get("download"); format != "" {
+		s.download(w, r, src, name, urlPath, format)
+		return
+	}
 	res, err := render.Markdown(src)
 	if err != nil {
 		http.Error(w, "render error: "+err.Error(), http.StatusInternalServerError)
 		return
-	}
-	title := res.Title
-	if title == "" {
-		title = name
 	}
 	var toc []tocEntry
 	if s.toc {
 		toc = buildTOC(res.Headings)
 	}
 	s.render(w, page{
-		Title:   title,
-		Crumbs:  crumbs(urlPath, withRoot),
-		Content: template.HTML(res.HTML),
-		RawURL:  rawURL,
-		Mermaid: bytes.Contains(res.HTML, []byte(`class="language-mermaid"`)),
-		TOC:     toc,
+		Title:    pageTitle(res, name),
+		Crumbs:   crumbs(urlPath, withRoot),
+		Content:  template.HTML(res.HTML),
+		RawURL:   selfURL + "?raw",
+		Download: selfURL,
+		Mermaid:  bytes.Contains(res.HTML, []byte(`class="language-mermaid"`)),
+		TOC:      toc,
 	})
+}
+
+// pageTitle is the document's own title, else name.
+func pageTitle(res render.Result, name string) string {
+	if res.Title != "" {
+		return res.Title
+	}
+	return name
 }
 
 func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, urlPath string) {
@@ -561,16 +592,21 @@ func (s *Server) render(w http.ResponseWriter, p page) {
 	p.Reload = s.hub != nil && !p.noReload
 	p.Search = s.index == "" && s.content == nil
 	p.HighlightCSS = template.CSS(render.HighlightCSS())
-	if s.theme == "light" || s.theme == "dark" {
-		p.Theme = s.theme
-	}
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "page.html", p); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "page.html", s.themed(p)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write(buf.Bytes())
+}
+
+// themed applies the server's theme setting to p.
+func (s *Server) themed(p page) page {
+	if s.theme == "light" || s.theme == "dark" {
+		p.Theme = s.theme
+	}
+	return p
 }
 
 // indexFile returns the name of the first README.md / index.md style file in

@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- Download menu on markdown pages: PDF (via the print dialog), Markdown,
+  standalone HTML with styles and local images inlined, and Word `.docx`,
+  generated without external tools. Also reachable as `?download=md|html|docx`.
+  Mermaid diagrams are included as pictures when downloading from the page
+  (SVG in HTML; SVG with a PNG fallback in `.docx`).
+
 ## [0.19.1] - 2026-10-11
 
 ### Fixed

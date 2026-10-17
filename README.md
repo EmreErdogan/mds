@@ -148,6 +148,14 @@ or `mds serve config` to serve it.
 - `mds page.html` serves a single HTML file as-is, with the files around it
   available for its assets.
 - Append `?raw` to any markdown URL to see the source.
+- The "download" menu on a markdown page saves it as PDF (through the
+  browser's print dialog), Markdown, standalone HTML (styles and local images
+  inlined) or Word `.docx` (built in, no external tools). The same files are
+  available at `?download=md`, `?download=html` and `?download=docx`. Local
+  images go into the HTML and `.docx` files only if mds would serve them.
+  Mermaid diagrams are drawn by the page and sent along, so they arrive as
+  pictures (SVG, plus a PNG for readers without SVG support in `.docx`); a
+  plain `?download=` request without the page keeps them as code.
 - In single-file mode the file is served at `/`; images and other assets next
   to it resolve normally.
 

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<style>
+{{.HighlightCSS}}
+</style>
+<style>
+{{template "css"}}</style>
+</head>
+<body>
+<main>
+{{.Content}}
+</main>
+{{if .Mermaid}}{{template "mermaid"}}{{end}}
+</body>
+</html>
