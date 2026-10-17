@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-17
+
 ### Added
 - Download menu on markdown pages: PDF (via the print dialog), Markdown,
   standalone HTML with styles and local images inlined, and Word `.docx`,
