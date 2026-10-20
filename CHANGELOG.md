@@ -5,12 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-20
+
 ### Added
 - Directory listings show when each file and folder was last modified, as
-  relative time like GitHub ("3 days ago", "last month"). Hovering shows the
+  relative time ("3 days ago", "last month"). Hovering shows the
   full date and time with its GMT offset. A folder shows the latest change
   anywhere inside it, counting only files the listing would show.
-- Folder and file icons next to names in directory listings, as on GitHub.
+- Folder and file icons next to names in directory listings.
 - Accent colors for links and folder icons: coral (the new default), orange,
   amber, teal, green, purple and blue (the previous look). Pick the default
   with `--accent`, `MDS_ACCENT` or `accent` in the config file. The theme
@@ -19,7 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 - Names in directory listings use the normal text color and turn the accent
-  color only on hover. Listings use a 14px font, as on GitHub.
+  color only on hover. Listings use a 14px font.
 
 ## [0.20.0] - 2026-10-17
 
