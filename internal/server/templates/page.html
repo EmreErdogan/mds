@@ -144,7 +144,6 @@
   document.addEventListener("click", function (e) {
     if (menu.classList.contains("open") && !menu.contains(e.target) && e.target !== btn) setMenu(false);
   });
-  menu.addEventListener("click", function (e) { if (e.target.tagName === "A") setMenu(false); });
 
   // Filtering.
   function applyFilter(toc, q) {
@@ -162,7 +161,7 @@
     f.addEventListener("keydown", function (e) {
       if (e.key === "Enter") {
         var first = toc.querySelector("li:not([hidden]) a");
-        if (first) { first.click(); if (toc === menu) setMenu(false); }
+        if (first) first.click();
         e.preventDefault();
       } else if (e.key === "Escape") {
         if (f.value) { f.value = ""; applyFilter(toc, ""); } else { f.blur(); if (toc === menu) setMenu(false); }

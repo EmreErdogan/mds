@@ -899,3 +899,23 @@ func TestListingIcons(t *testing.T) {
 		}
 	}
 }
+
+func TestListingReadmeTOC(t *testing.T) {
+	dir := t.TempDir()
+	readme := "# Project\n\n## Install\n\n## Usage\n\n## License\n"
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(readme), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	on, _ := New(Options{Root: dir, DirIndex: IndexReadme, TOC: true})
+	if _, body := get(t, on, "/"); !strings.Contains(body, `class="has-toc"`) || !strings.Contains(body, `href="#usage"`) {
+		t.Error("listing with a README should show its table of contents")
+	}
+	off, _ := New(Options{Root: dir, DirIndex: IndexReadme, TOC: false})
+	if _, body := get(t, off, "/"); strings.Contains(body, `class="has-toc"`) {
+		t.Error("toc shown while disabled")
+	}
+	list, _ := New(Options{Root: dir, DirIndex: IndexList, TOC: true})
+	if _, body := get(t, list, "/"); strings.Contains(body, `class="has-toc"`) {
+		t.Error("toc shown for a listing without a rendered README")
+	}
+}

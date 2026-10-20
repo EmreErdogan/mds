@@ -504,10 +504,14 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	var toc []tocEntry
 	if s.dirIndex == IndexReadme || s.dirIndex == IndexHTML {
 		if name := s.indexFile(fsPath); name != "" {
 			if src, err := os.ReadFile(filepath.Join(fsPath, name)); err == nil {
 				if res, err := render.Markdown(src); err == nil {
+					if s.toc {
+						toc = buildTOC(res.Headings)
+					}
 					fmt.Fprintf(&buf, `<section class="dir-index"><header><a href="%s">%s</a></header>%s</section>`,
 						template.HTMLEscapeString(path.Join(urlPath, name)), template.HTMLEscapeString(name), res.HTML)
 				}
@@ -522,6 +526,7 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 		Title:   title + "/",
 		Crumbs:  crumbs(urlPath, true),
 		Content: template.HTML(buf.String()),
+		TOC:     toc,
 	})
 }
 

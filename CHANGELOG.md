@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- A directory whose README is rendered below its listing now gets the
+  README's table of contents too.
+
+### Changed
+- The Contents menu stays open after you pick a heading, so you can jump
+  between sections without reopening it. Click outside it or press Escape to
+  close it.
+
 ## [0.21.0] - 2026-10-20
 
 ### Added
