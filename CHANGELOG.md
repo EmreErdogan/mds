@@ -10,6 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   relative time like GitHub ("3 days ago", "last month"). Hovering shows the
   full date and time with its GMT offset. A folder shows the latest change
   anywhere inside it, counting only files the listing would show.
+- Folder and file icons next to names in directory listings, as on GitHub.
 
 ## [0.20.0] - 2026-10-17
 

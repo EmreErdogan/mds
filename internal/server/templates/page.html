@@ -322,10 +322,10 @@ document.addEventListener("keydown", function (e) {
 })();
 </script>{{end}}
 {{define "css"}}/* page styles come last so pre/code backgrounds win over chroma's */
-:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a}
+:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a;--dir:#54aeff}
 :root[data-theme=light]{color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}}
-:root[data-theme=dark]{color-scheme:dark;--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e;--dir:#8b949e}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e;--dir:#8b949e}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
 html{scroll-behavior:smooth}
@@ -407,9 +407,12 @@ hr{border:0;border-top:1px solid var(--border);margin:2em 0}
 input[type=checkbox]{margin-right:.4em}
 .listing{list-style:none;padding:0;margin:0;border:1px solid var(--border);border-radius:6px}
 .listing li{display:flex;align-items:baseline;gap:1rem;padding:.5rem .9rem;border-top:1px solid var(--border)}
-.listing li>a{flex:1;min-width:0;overflow-wrap:anywhere}
+.listing li>a{flex:1;min-width:0;display:flex;align-items:baseline;gap:.6rem}
+.listing li>a>span{min-width:0;overflow-wrap:anywhere}
 .listing li:first-child{border-top:0}
 .listing a{text-decoration:none}.listing a:hover{text-decoration:underline}
+.listing .icon{flex:none;align-self:flex-start;width:16px;height:16px;margin-top:.3em;color:var(--muted)}
+.listing .icon.dir{color:var(--dir)}
 .listing .size,.listing .mtime{color:var(--muted);font-size:.85rem;white-space:nowrap;text-align:right}
 .listing .size{min-width:4.5rem}.listing .mtime{min-width:7rem}
 @media (max-width:500px){.listing li{gap:.6rem}.listing .size,.listing .mtime{min-width:0}}

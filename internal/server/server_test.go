@@ -853,3 +853,26 @@ func TestListingFolderModTime(t *testing.T) {
 		t.Errorf("folder should carry its newest visible file's time %s", want)
 	}
 }
+
+func TestListingIcons(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.md"), []byte("# a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(Options{Root: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, body := get(t, s, "/")
+	for _, want := range []string{
+		`<a href="/sub/"><svg class="icon dir"`,
+		`<a href="/a.md"><svg class="icon"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("listing missing %s", want)
+		}
+	}
+}
