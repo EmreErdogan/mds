@@ -26,10 +26,14 @@ type Config struct {
 	Open    bool     // open a browser after the server starts
 	TOC     bool     // show a table of contents on rendered pages
 	Theme   string   // "auto", "light" or "dark"
+	Accent  string   // color for links and folder icons, one of Accents
 }
 
 // Themes lists the accepted theme values.
 var Themes = []string{"auto", "light", "dark"}
+
+// Accents lists the accepted accent colors; the first is the default.
+var Accents = []string{"coral", "orange", "amber", "teal", "green", "purple", "blue"}
 
 // IndexModes lists the accepted index values. "readme" shows the listing with
 // README.md / index.md rendered below it and falls back to index.html when
@@ -37,14 +41,14 @@ var Themes = []string{"auto", "light", "dark"}
 var IndexModes = []string{"readme", "html", "list"}
 
 // Keys lists setting names in display order.
-var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open", "toc", "theme"}
+var Keys = []string{"host", "port", "types", "exclude", "hidden", "reload", "index", "open", "toc", "theme", "accent"}
 
 // Sources records where each setting's effective value came from.
 type Sources map[string]string
 
 // Defaults returns the built-in configuration.
 func Defaults() Config {
-	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true, Index: "readme", TOC: true, Theme: "auto"}
+	return Config{Host: "0.0.0.0", Port: 8080, Exclude: []string{".git"}, Reload: true, Index: "readme", TOC: true, Theme: "auto", Accent: Accents[0]}
 }
 
 // GlobalPath returns the global config file location:
@@ -79,6 +83,7 @@ type file struct {
 	Open    *bool     `toml:"open"`
 	TOC     *bool     `toml:"toc"`
 	Theme   *string   `toml:"theme"`
+	Accent  *string   `toml:"accent"`
 }
 
 // Load resolves the configuration for serving localDir.
@@ -163,6 +168,12 @@ func applyFile(cfg *Config, src Sources, label, path string) error {
 		}
 		cfg.Theme, src["theme"] = *f.Theme, where
 	}
+	if f.Accent != nil {
+		if err := CheckAccent(*f.Accent); err != nil {
+			return fmt.Errorf("%s: %w", path, err)
+		}
+		cfg.Accent, src["accent"] = *f.Accent, where
+	}
 	return nil
 }
 
@@ -188,6 +199,12 @@ func applyEnv(cfg *Config, src Sources) error {
 			return fmt.Errorf("MDS_THEME: %w", err)
 		}
 		cfg.Theme, src["theme"] = v, "env MDS_THEME"
+	}
+	if v, ok := os.LookupEnv("MDS_ACCENT"); ok && v != "" {
+		if err := CheckAccent(v); err != nil {
+			return fmt.Errorf("MDS_ACCENT: %w", err)
+		}
+		cfg.Accent, src["accent"] = v, "env MDS_ACCENT"
 	}
 	if v, ok := os.LookupEnv("MDS_INDEX"); ok && v != "" {
 		mode, err := ParseIndex(v)
@@ -227,6 +244,16 @@ func CheckTheme(v string) error {
 		}
 	}
 	return fmt.Errorf("invalid theme %q (want auto, light or dark)", v)
+}
+
+// CheckAccent validates an accent color name.
+func CheckAccent(v string) error {
+	for _, a := range Accents {
+		if v == a {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid accent %q (want %s)", v, strings.Join(Accents, ", "))
 }
 
 // ParseIndex validates an index mode. Booleans are accepted for settings that
@@ -329,6 +356,8 @@ func Format(cfg Config, key string) string {
 		return strconv.FormatBool(cfg.TOC)
 	case "theme":
 		return cfg.Theme
+	case "accent":
+		return cfg.Accent
 	}
 	return ""
 }
@@ -372,6 +401,10 @@ const Template = `# mds configuration
 
 # Color theme: "auto" follows the system, or force "light" / "dark".
 #theme = "auto"
+
+# Color for links and folder icons: coral, orange, amber, teal, green, purple
+# or blue. Readers can pick another from the theme menu.
+#accent = "coral"
 `
 
 // Init writes Template to path. It refuses to overwrite an existing file

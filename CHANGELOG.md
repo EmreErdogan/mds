@@ -11,6 +11,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   full date and time with its GMT offset. A folder shows the latest change
   anywhere inside it, counting only files the listing would show.
 - Folder and file icons next to names in directory listings, as on GitHub.
+- Accent colors for links and folder icons: coral (the new default), orange,
+  amber, teal, green, purple and blue (the previous look). Pick the default
+  with `--accent`, `MDS_ACCENT` or `accent` in the config file. The theme
+  button in the top bar now opens a menu for both the mode (auto, light,
+  dark) and the accent; readers' choices are remembered per browser.
+
+### Changed
+- Names in directory listings use the normal text color and turn the accent
+  color only on hover. Listings use a 14px font, as on GitHub.
 
 ## [0.20.0] - 2026-10-17
 

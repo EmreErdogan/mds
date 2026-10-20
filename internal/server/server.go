@@ -63,6 +63,8 @@ type Options struct {
 	TOC bool
 	// Theme is "auto", "light" or "dark".
 	Theme string
+	// Accent names the color for links and folder icons; "" means coral.
+	Accent string
 }
 
 // Directory index modes. A "?list" query on a directory always shows its
@@ -88,6 +90,7 @@ type Server struct {
 	dirIndex string
 	toc      bool
 	theme    string
+	accent   string
 	content  []byte
 	cname    string
 }
@@ -98,7 +101,7 @@ func New(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden, toc: opts.TOC, theme: opts.Theme}
+	s := &Server{root: root, index: opts.Index, dirIndex: opts.DirIndex, hidden: opts.Hidden, toc: opts.TOC, theme: opts.Theme, accent: opts.Accent}
 	if opts.Content != nil {
 		s.content, s.cname = opts.Content, opts.ContentName
 		if s.cname == "" {
@@ -155,6 +158,7 @@ type page struct {
 	Mermaid      bool // page has mermaid code blocks; load the renderer
 	TOC          []tocEntry
 	Theme        string // "" for auto, else "light" or "dark"
+	Accent       string // "" for the default (coral)
 	Search       bool   // show the search box (directory mode)
 	Query        string // current search query, shown in the box
 	noReload     bool   // nothing on disk backs this page
@@ -625,6 +629,7 @@ func (s *Server) themed(p page) page {
 	if s.theme == "light" || s.theme == "dark" {
 		p.Theme = s.theme
 	}
+	p.Accent = s.accent
 	return p
 }
 

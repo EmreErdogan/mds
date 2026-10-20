@@ -45,6 +45,8 @@ Server:
       --no-reload       Disable live reload
       --no-toc          Hide the table of contents on rendered pages
       --theme <name>    auto (follow the system), light or dark
+      --accent <name>   Color for links and folder icons: coral (default),
+                        orange, amber, teal, green, purple or blue
 
 Files (directory mode):
   -t, --types <list>    Only serve these file types, e.g. "md,txt,png".
@@ -63,7 +65,8 @@ Files (directory mode):
 Settings are resolved in this order, later wins:
   defaults < ~/.config/mds/config.toml < <dir>/.mds.toml < environment < flags
 Environment: MDS_HOST, MDS_PORT, MDS_TYPES, MDS_EXCLUDE, MDS_HIDDEN,
-             MDS_RELOAD, MDS_INDEX, MDS_OPEN, MDS_TOC, MDS_THEME
+             MDS_RELOAD, MDS_INDEX, MDS_OPEN, MDS_TOC, MDS_THEME,
+             MDS_ACCENT
 
 Examples:
   mds README.md
@@ -114,12 +117,13 @@ func main() {
 	fs.Usage = printUsage
 	var (
 		port                                   int
-		host, types, exclude, theme            string
+		host, types, exclude, theme, accent    string
 		index, noIndex, noReload, hidden, open bool
 		noTOC, htmlIndex                       bool
 	)
 	fs.BoolVar(&noTOC, "no-toc", false, "")
 	fs.StringVar(&theme, "theme", "", "")
+	fs.StringVar(&accent, "accent", "", "")
 	fs.IntVar(&port, "port", 0, "")
 	fs.IntVar(&port, "p", 0, "")
 	fs.StringVar(&host, "host", "", "")
@@ -217,6 +221,11 @@ func main() {
 				fatal(err)
 			}
 			cfg.Theme, src["theme"] = theme, flagSrc
+		case "accent":
+			if err := config.CheckAccent(accent); err != nil {
+				fatal(err)
+			}
+			cfg.Accent, src["accent"] = accent, flagSrc
 		}
 	})
 
@@ -235,6 +244,7 @@ func main() {
 		DirIndex: cfg.Index,
 		TOC:      cfg.TOC,
 		Theme:    cfg.Theme,
+		Accent:   cfg.Accent,
 	})
 	if err != nil {
 		fatal(err)

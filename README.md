@@ -46,6 +46,8 @@ mds serve [flags] <path>   Same thing; use when the path is named like a
       --no-reload      Disable live reload
       --no-toc         Hide the table of contents
       --theme <name>   auto (default), light or dark
+      --accent <name>  coral (default), orange, amber, teal, green, purple
+                       or blue
   -t, --types <list>   Only serve these file types, e.g. "md,txt,png"
   -x, --exclude <list> Glob patterns for names to skip (default ".git")
       --hidden         Also serve dot-prefixed files and directories
@@ -69,7 +71,8 @@ Settings are resolved in this order, later wins:
 2. global config: `~/.config/mds/config.toml` (or `$XDG_CONFIG_HOME/mds/config.toml`)
 3. local config: `.mds.toml` in the served directory
 4. environment: `MDS_HOST`, `MDS_PORT`, `MDS_TYPES`, `MDS_EXCLUDE`,
-   `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`, `MDS_TOC`, `MDS_THEME`
+   `MDS_HIDDEN`, `MDS_RELOAD`, `MDS_INDEX`, `MDS_OPEN`, `MDS_TOC`, `MDS_THEME`,
+   `MDS_ACCENT`
 5. command-line flags
 
 `mds config init` creates the global file with every key commented out. All
@@ -86,7 +89,9 @@ index = "readme"                   # what a directory shows: readme, html or lis
 open = false                       # open a browser after starting
 toc = true                         # table of contents on rendered pages
 theme = "auto"                     # auto, light or dark (readers can override
-                                   # it with the switcher in the top bar)
+                                   # it from the theme menu in the top bar)
+accent = "coral"                   # links and folder icons: coral, orange, amber,
+                                   # teal, green, purple or blue
 ```
 
 `mds config [dir]` prints the effective values and the source of each. When
@@ -129,9 +134,10 @@ or `mds serve config` to serve it.
 - ```mermaid blocks are rendered as diagrams (needs internet access in the
   browser: mermaid.js is loaded from a CDN on pages that contain a diagram).
 - Fenced code blocks are syntax-highlighted.
-- Light and dark palettes. `theme` picks the server default (`auto` follows
-  the system); readers can override it with the switcher in the top bar, and
-  the choice is remembered per browser.
+- Light and dark palettes, and seven accent colors for links and folder
+  icons. `theme` and `accent` pick the server defaults (`auto` follows the
+  system); readers can override both from the theme menu in the top bar, and
+  their choice is remembered per browser.
 - Hover a heading to reveal its `#` anchor link; following an anchor scrolls
   smoothly and keeps the heading clear of the sticky top bar.
 - In directory mode the top bar has a search box (press `s` to focus it). It

@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/EmreErdogan/mds/internal/config"
 )
 
 func testRoot(t *testing.T) string {
@@ -281,19 +283,40 @@ func TestTheme(t *testing.T) {
 	if _, body := get(t, auto, "/README.md"); !strings.Contains(body, `<html lang="en">`) {
 		t.Error("auto theme should not set data-theme")
 	}
-	if _, body := get(t, auto, "/README.md"); !strings.Contains(body, `class="theme-btn" data-server-theme=""`) || !strings.Contains(body, `localStorage.getItem("mds-theme")`) {
+	if _, body := get(t, auto, "/README.md"); !strings.Contains(body, `class="theme" data-server-theme="" data-server-accent=""`) || !strings.Contains(body, `localStorage.getItem("mds-theme")`) {
 		t.Error("theme switcher missing")
 	}
 	dark, _ := New(Options{Root: root, Theme: "dark"})
 	if _, body := get(t, dark, "/README.md"); !strings.Contains(body, `<html lang="en" data-theme="dark">`) || !strings.Contains(body, `data-server-theme="dark"`) {
 		t.Error("dark theme not applied to html element")
 	}
+	teal, _ := New(Options{Root: root, Accent: "teal"})
+	if _, body := get(t, teal, "/README.md"); !strings.Contains(body, `<html lang="en" data-accent="teal">`) || !strings.Contains(body, `data-server-accent="teal"`) {
+		t.Error("accent not applied to html element")
+	}
+}
+
+// Every accent the config accepts needs a palette, a swatch in the theme menu
+// and a place in the early script that restores a reader's choice.
+func TestAccentsComplete(t *testing.T) {
+	s, _ := New(Options{Root: testRoot(t)})
+	_, body := get(t, s, "/README.md")
+	for _, a := range config.Accents {
+		for _, want := range []string{"[data-accent=" + a + "]{--dir:", `<button type="button" data-accent="` + a + `"`} {
+			if !strings.Contains(body, want) {
+				t.Errorf("accent %s: page missing %s", a, want)
+			}
+		}
+	}
+	if want := "/^(" + strings.Join(config.Accents, "|") + ")$/"; !strings.Contains(body, want) {
+		t.Errorf("early script should accept exactly %s", want)
+	}
 }
 
 func TestPrintStyles(t *testing.T) {
 	s, _ := New(Options{Root: testRoot(t)})
 	_, body := get(t, s, "/README.md")
-	if !strings.Contains(body, "@media print{") || !strings.Contains(body, ".totop,.anchor,.theme-btn,.toc-btn,.dl{display:none!important}") {
+	if !strings.Contains(body, "@media print{") || !strings.Contains(body, ".totop,.anchor,.theme,.toc-btn,.dl{display:none!important}") {
 		t.Error("print styles missing")
 	}
 }
@@ -636,7 +659,7 @@ func TestDownload(t *testing.T) {
 	if !strings.Contains(html, `src="../.private/s.png"`) || !strings.Contains(html, `src="https://example.com/x.png"`) {
 		t.Error("hidden or remote images should not be inlined")
 	}
-	for _, unwanted := range []string{"<nav>", "/_mds/", `class="theme-btn"`} {
+	for _, unwanted := range []string{"<nav>", "/_mds/", `class="theme"`} {
 		if strings.Contains(html, unwanted) {
 			t.Errorf("html export contains %q", unwanted)
 		}

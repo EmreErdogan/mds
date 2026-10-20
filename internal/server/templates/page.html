@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
+<html lang="en"{{if .Theme}} data-theme="{{.Theme}}"{{end}}{{if .Accent}} data-accent="{{.Accent}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,6 +10,8 @@
     var t = localStorage.getItem("mds-theme");
     if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
     else if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    var a = localStorage.getItem("mds-accent");
+    if (/^(coral|orange|amber|teal|green|purple|blue)$/.test(a)) document.documentElement.setAttribute("data-accent", a);
   } catch (e) {}
 })();
 </script>
@@ -31,7 +33,12 @@
       <a href="{{.Download}}?download=html" download data-diagrams>HTML<span class="ext">.html</span></a>
       <a href="{{.Download}}?download=docx" download data-diagrams>Word<span class="ext">.docx</span></a>
     </div></details>{{end}}
-    <button type="button" class="theme-btn" data-server-theme="{{.Theme}}" aria-label="Theme"></button>
+    <details class="theme" data-server-theme="{{.Theme}}" data-server-accent="{{.Accent}}"><summary aria-label="Theme"><span class="glyph"></span><span class="dot"></span></summary><div class="theme-menu">
+      <div class="label">Mode</div>
+      <div class="modes"><button type="button" data-mode="auto">&#9680; Auto</button><button type="button" data-mode="light">&#9728; Light</button><button type="button" data-mode="dark">&#9790; Dark</button></div>
+      <div class="label">Accent</div>
+      <div class="accents"><button type="button" data-accent="coral" title="Coral" aria-label="Coral"></button><button type="button" data-accent="orange" title="Orange" aria-label="Orange"></button><button type="button" data-accent="amber" title="Amber" aria-label="Amber"></button><button type="button" data-accent="teal" title="Teal" aria-label="Teal"></button><button type="button" data-accent="green" title="Green" aria-label="Green"></button><button type="button" data-accent="purple" title="Purple" aria-label="Purple"></button><button type="button" data-accent="blue" title="Blue" aria-label="Blue"></button></div>
+    </div></details>
     {{if .TOC}}<button type="button" class="toc-btn" aria-expanded="false" aria-controls="toc-menu" title="Contents (t)">&#9776; Contents</button>{{end}}
   </div>
 </nav>
@@ -45,22 +52,48 @@
 <button type="button" class="totop" title="Back to top" aria-label="Back to top">&#8593;</button>
 <script>
 (function () {
-  // Theme switcher: auto -> light -> dark. The choice lives in this browser's
-  // localStorage and overrides the server's theme setting.
-  var btn = document.querySelector(".theme-btn");
-  var order = ["auto", "light", "dark"];
-  var labels = { auto: "\u25D0", light: "\u2600", dark: "\u263E" };
+  // Theme menu: mode (auto, light, dark) and accent color. Choices live in
+  // this browser's localStorage and override the server's settings.
+  var menu = document.querySelector(".theme");
+  var modes = ["auto", "light", "dark"];
+  var glyphs = { auto: "\u25D0", light: "\u2600", dark: "\u263E" };
   var titles = { auto: "Theme: auto (follows system)", light: "Theme: light", dark: "Theme: dark" };
-  function stored() { try { var t = localStorage.getItem("mds-theme"); return order.indexOf(t) >= 0 ? t : null; } catch (e) { return null; } }
-  function current() { return stored() || btn.getAttribute("data-server-theme") || "auto"; }
+  var accents = [];
+  menu.querySelectorAll("[data-accent]").forEach(function (b) { accents.push(b.getAttribute("data-accent")); });
+  function stored(key, valid) { try { var v = localStorage.getItem(key); return valid.indexOf(v) >= 0 ? v : null; } catch (e) { return null; } }
+  function current() { return stored("mds-theme", modes) || menu.getAttribute("data-server-theme") || "auto"; }
+  function currentAccent() { return stored("mds-accent", accents) || menu.getAttribute("data-server-accent") || accents[0]; }
+  function press(sel, attr, v) { menu.querySelectorAll(sel).forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute(attr) === v); }); }
   function apply(t) {
     if (t === "auto") document.documentElement.removeAttribute("data-theme");
     else document.documentElement.setAttribute("data-theme", t);
-    btn.textContent = labels[t];
-    btn.title = titles[t] + " \u2014 click to change";
-    btn.setAttribute("data-theme-value", t);
+    menu.querySelector(".glyph").textContent = glyphs[t];
+    menu.querySelector("summary").title = titles[t];
+    press("[data-mode]", "data-mode", t);
+  }
+  function applyAccent(a) {
+    document.documentElement.setAttribute("data-accent", a);
+    press(".accents [data-accent]", "data-accent", a);
   }
   apply(current());
+  applyAccent(currentAccent());
+  menu.querySelectorAll("[data-mode]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var t = b.getAttribute("data-mode");
+      try { localStorage.setItem("mds-theme", t); } catch (e) {}
+      apply(t);
+      document.dispatchEvent(new CustomEvent("mds:theme"));
+    });
+  });
+  menu.querySelectorAll(".accents [data-accent]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var a = b.getAttribute("data-accent");
+      try { localStorage.setItem("mds-accent", a); } catch (e) {}
+      applyAccent(a);
+    });
+  });
+  document.addEventListener("click", function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && menu.open) { menu.open = false; menu.querySelector("summary").focus(); } });
   // Print with the light palette (code highlighting, diagrams), then restore.
   var beforePrint = null;
   window.addEventListener("beforeprint", function () {
@@ -72,12 +105,6 @@
     if (beforePrint) document.documentElement.setAttribute("data-theme", beforePrint);
     else document.documentElement.removeAttribute("data-theme");
     beforePrint = null;
-    document.dispatchEvent(new CustomEvent("mds:theme"));
-  });
-  btn.addEventListener("click", function () {
-    var next = order[(order.indexOf(current()) + 1) % order.length];
-    try { localStorage.setItem("mds-theme", next); } catch (e) {}
-    apply(next);
     document.dispatchEvent(new CustomEvent("mds:theme"));
   });
 
@@ -322,10 +349,19 @@ document.addEventListener("keydown", function (e) {
 })();
 </script>{{end}}
 {{define "css"}}/* page styles come last so pre/code backgrounds win over chroma's */
-:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--quote:#57606a;--dir:#54aeff}
+:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--border:#d0d7de;--code-bg:#f6f8fa;--link:var(--link-l);--quote:#57606a}
+/* Accents: --dir colors folder icons and swatches (3:1 on both themes);
+   --link-l / --link-d are text shades for light and dark (4.5:1). */
+:root,[data-accent=coral]{--dir:#e05d6f;--link-l:#d72e45;--link-d:#e26879}
+[data-accent=orange]{--dir:#ce611d;--link-l:#b5551a;--link-d:#e16e27}
+[data-accent=amber]{--dir:#b8820b;--link-l:#966a09;--link-d:#bd850b}
+[data-accent=teal]{--dir:#0f9488;--link-l:#0d7f75;--link-d:#10a093}
+[data-accent=green]{--dir:#3f9d4e;--link-l:#338040;--link-d:#41a251}
+[data-accent=purple]{--dir:#8b5cf6;--link-l:#814ef5;--link-d:#a079f8}
+[data-accent=blue]{--dir:#54aeff;--link-l:#0969da;--link-d:#4493f8}
 :root[data-theme=light]{color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e;--dir:#8b949e}}
-:root[data-theme=dark]{color-scheme:dark;--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--quote:#8b949e;--dir:#8b949e}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:var(--link-d);--quote:#8b949e}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#0d1117;--fg:#e6edf3;--muted:#8b949e;--border:#30363d;--code-bg:#161b22;--link:var(--link-d);--quote:#8b949e}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
 html{scroll-behavior:smooth}
@@ -349,8 +385,22 @@ main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem;min-width:0}
 .toc .filter:focus{outline:none;border-color:var(--link)}
 .toc .empty{color:var(--muted);font-style:italic;display:none}
 .toc.filtered-empty .empty{display:block}
-.theme-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .5rem;cursor:pointer;line-height:1}
-.theme-btn:hover{color:var(--fg);background:var(--code-bg)}
+.theme{position:relative}
+.theme>summary{list-style:none;display:flex;align-items:center;gap:.4rem;border:1px solid var(--border);border-radius:6px;color:var(--muted);padding:.2rem .5rem;cursor:pointer;line-height:1}
+.theme>summary::-webkit-details-marker{display:none}
+.theme>summary:hover,.theme[open]>summary{color:var(--fg);background:var(--code-bg)}
+.theme .dot{width:.65rem;height:.65rem;border-radius:50%;background:var(--dir)}
+.theme-menu{position:absolute;right:0;top:calc(100% + .5rem);width:14.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.6rem;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:30}
+.theme-menu .label{font-size:.75rem;color:var(--muted);margin:0 0 .35rem}
+.theme-menu .label+div{margin-bottom:.7rem}.theme-menu .label+div:last-child{margin-bottom:0}
+.theme-menu .modes{display:flex;gap:.25rem}
+.theme-menu .modes button{flex:1;padding:.3rem 0;border:1px solid var(--border);border-radius:6px;background:none;font:inherit;font-size:.8rem;color:var(--fg);cursor:pointer}
+.theme-menu .modes button:hover{background:var(--code-bg)}
+.theme-menu .modes button[aria-pressed=true]{border-color:var(--dir);background:var(--code-bg)}
+.theme-menu .accents{display:flex;flex-wrap:wrap;gap:.45rem}
+.theme-menu .accents button{width:1.4rem;height:1.4rem;padding:0;border:0;border-radius:50%;background:var(--dir);cursor:pointer}
+.theme-menu .accents button[aria-pressed=true]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--dir)}
+.theme-menu button:focus-visible{outline:2px solid var(--link);outline-offset:2px}
 .toc-btn{display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;padding:.2rem .55rem;cursor:pointer}
 .toc-btn:hover,.toc-btn[aria-expanded=true]{color:var(--fg);background:var(--code-bg)}
 .toc-menu{display:none;position:fixed;top:2.9rem;right:.75rem;width:min(22rem,calc(100vw - 1.5rem));max-height:calc(100vh - 4rem);overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:30}
@@ -376,7 +426,7 @@ main{max-width:56rem;margin:0 auto;padding:2rem 1.25rem 4rem;min-width:0}
 }
 @media print{
   :root,:root[data-theme=dark]{color-scheme:light;--bg:#fff;--fg:#000;--muted:#555;--border:#bbb;--code-bg:#f3f3f3;--link:#000;--quote:#444}
-  nav,.toc-menu,.toc-side,.totop,.anchor,.theme-btn,.toc-btn,.dl{display:none!important}
+  nav,.toc-menu,.toc-side,.totop,.anchor,.theme,.toc-btn,.dl{display:none!important}
   body.has-toc .layout{display:block}
   main{max-width:none;padding:0;margin:0}
   body{font-size:11pt;line-height:1.45}
@@ -405,15 +455,15 @@ th{font-weight:600;background:var(--code-bg)}
 img{max-width:100%}
 hr{border:0;border-top:1px solid var(--border);margin:2em 0}
 input[type=checkbox]{margin-right:.4em}
-.listing{list-style:none;padding:0;margin:0;border:1px solid var(--border);border-radius:6px}
+.listing{list-style:none;padding:0;margin:0;font-size:.875rem;border:1px solid var(--border);border-radius:6px}
 .listing li{display:flex;align-items:baseline;gap:1rem;padding:.5rem .9rem;border-top:1px solid var(--border)}
 .listing li>a{flex:1;min-width:0;display:flex;align-items:baseline;gap:.6rem}
 .listing li>a>span{min-width:0;overflow-wrap:anywhere}
 .listing li:first-child{border-top:0}
-.listing a{text-decoration:none}.listing a:hover{text-decoration:underline}
-.listing .icon{flex:none;align-self:flex-start;width:16px;height:16px;margin-top:.3em;color:var(--muted)}
+.listing a{color:var(--fg);text-decoration:none}.listing a:hover{color:var(--link);text-decoration:underline}
+.listing .icon{flex:none;align-self:flex-start;width:16px;height:16px;margin-top:calc((1.6em - 16px)/2);color:var(--muted)}
 .listing .icon.dir{color:var(--dir)}
-.listing .size,.listing .mtime{color:var(--muted);font-size:.85rem;white-space:nowrap;text-align:right}
+.listing .size,.listing .mtime{color:var(--muted);white-space:nowrap;text-align:right}
 .listing .size{min-width:4.5rem}.listing .mtime{min-width:7rem}
 @media (max-width:500px){.listing li{gap:.6rem}.listing .size,.listing .mtime{min-width:0}}
 pre.mermaid{background:none;text-align:center}
