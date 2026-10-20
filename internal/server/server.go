@@ -5,8 +5,10 @@ package server
 import (
 	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -136,6 +138,11 @@ type entry struct {
 	URL   string
 	IsDir bool
 	Size  string
+	// Modified is the relative modification time ("3 days ago"); ModTitle
+	// the full timestamp shown on hover; ModISO the machine-readable form.
+	Modified string
+	ModTitle string
+	ModISO   string
 }
 
 type page struct {
@@ -445,6 +452,8 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 		http.Error(w, "cannot read directory", http.StatusInternalServerError)
 		return
 	}
+	now := time.Now()
+	deadline := now.Add(listingModTimeout)
 	var entries []entry
 	for _, d := range dirents {
 		name := d.Name()
@@ -455,14 +464,24 @@ func (s *Server) serveListing(w http.ResponseWriter, r *http.Request, fsPath, ur
 			continue
 		}
 		e := entry{Name: name, IsDir: d.IsDir()}
+		info, infoErr := d.Info()
 		if d.IsDir() {
 			e.URL = path.Join(urlPath, name) + "/"
 			e.Name += "/"
 		} else {
 			e.URL = path.Join(urlPath, name)
-			if info, err := d.Info(); err == nil {
+			if infoErr == nil {
 				e.Size = humanSize(info.Size())
 			}
+		}
+		if infoErr == nil {
+			mt := info.ModTime()
+			if d.IsDir() {
+				mt = s.latestMod(filepath.Join(fsPath, name), mt, deadline)
+			}
+			e.Modified = relativeTime(mt, now)
+			e.ModTitle = fullTime(mt)
+			e.ModISO = mt.Format(time.RFC3339)
 		}
 		entries = append(entries, e)
 	}
@@ -691,4 +710,96 @@ func humanSize(n int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+// listingModTimeout bounds how long one listing spends walking folders to
+// find their latest change; folders not reached in time show their own
+// modification time.
+const listingModTimeout = 2 * time.Second
+
+// latestMod returns the most recent modification time of anything visible
+// under dir, the way GitHub dates a folder by its latest commit. Folders count
+// too, so deletions and renames show up. It starts from dir's own time and
+// stops early once deadline passes.
+func (s *Server) latestMod(dir string, latest, deadline time.Time) time.Time {
+	stop := errors.New("stop")
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || p == dir {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return stop
+		}
+		if s.blockedName(d.Name()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.IsDir() && !s.allowedType(d.Name()) {
+			return nil
+		}
+		if info, err := d.Info(); err == nil && info.ModTime().After(latest) {
+			latest = info.ModTime()
+		}
+		return nil
+	})
+	return latest
+}
+
+// relativeTime describes t relative to now the way GitHub does in its file
+// listings: "now", "5 minutes ago", "yesterday", "last month", ...
+func relativeTime(t, now time.Time) string {
+	d := now.Sub(t)
+	if d < 0 {
+		d = 0
+	}
+	plural := func(n int, unit string) string {
+		if n == 1 {
+			return "1 " + unit + " ago"
+		}
+		return fmt.Sprintf("%d %ss ago", n, unit)
+	}
+	switch days := int(d.Hours() / 24); {
+	case d < 45*time.Second:
+		return "now"
+	case d < 45*time.Minute:
+		return plural(max(1, int(d.Round(time.Minute).Minutes())), "minute")
+	case d < 22*time.Hour:
+		return plural(max(1, int(d.Round(time.Hour).Hours())), "hour")
+	case days < 2:
+		return "yesterday"
+	case days < 7:
+		return plural(days, "day")
+	case days < 14:
+		return "last week"
+	case days < 30:
+		return plural(days/7, "week")
+	case days < 60:
+		return "last month"
+	case days < 365:
+		return plural(days/30, "month")
+	case days < 730:
+		return "last year"
+	default:
+		return plural(days/365, "year")
+	}
+}
+
+// fullTime formats t in the server's time zone with its GMT offset, e.g.
+// "Oct 20, 2026, 14:03:05 GMT+3".
+func fullTime(t time.Time) string {
+	_, off := t.Zone()
+	sign := "+"
+	if off < 0 {
+		sign, off = "-", -off
+	}
+	zone := "GMT"
+	if off != 0 {
+		zone += sign + fmt.Sprint(off/3600)
+		if m := off % 3600 / 60; m != 0 {
+			zone += fmt.Sprintf(":%02d", m)
+		}
+	}
+	return t.Format("Jan 2, 2006, 15:04:05") + " " + zone
 }

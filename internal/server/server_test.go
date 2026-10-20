@@ -750,3 +750,106 @@ func TestDownloadDiagrams(t *testing.T) {
 		}
 	}
 }
+
+func TestListingModTime(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "a.md")
+	if err := os.WriteFile(f, []byte("# a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mt := time.Date(2020, 3, 4, 5, 6, 7, 0, time.UTC)
+	if err := os.Chtimes(f, mt, mt); err != nil {
+		t.Fatal(err)
+	}
+	s, err := New(Options{Root: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, body := get(t, s, "/")
+	// html/template writes "+" in attributes as "&#43;".
+	want := strings.ReplaceAll(`datetime="`+mt.Local().Format(time.RFC3339)+`" title="`+fullTime(mt.Local())+`"`, "+", "&#43;")
+	if !strings.Contains(body, want) {
+		t.Errorf("listing missing %s", want)
+	}
+}
+
+func TestRelativeTime(t *testing.T) {
+	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		ago  time.Duration
+		want string
+	}{
+		{10 * time.Second, "now"},
+		{time.Minute, "1 minute ago"},
+		{5 * time.Minute, "5 minutes ago"},
+		{3 * time.Hour, "3 hours ago"},
+		{30 * time.Hour, "yesterday"},
+		{4 * 24 * time.Hour, "4 days ago"},
+		{9 * 24 * time.Hour, "last week"},
+		{22 * 24 * time.Hour, "3 weeks ago"},
+		{40 * 24 * time.Hour, "last month"},
+		{100 * 24 * time.Hour, "3 months ago"},
+		{400 * 24 * time.Hour, "last year"},
+		{1000 * 24 * time.Hour, "2 years ago"},
+		{-time.Hour, "now"},
+	}
+	for _, c := range cases {
+		if got := relativeTime(now.Add(-c.ago), now); got != c.want {
+			t.Errorf("%v ago: got %q, want %q", c.ago, got, c.want)
+		}
+	}
+}
+
+func TestFullTime(t *testing.T) {
+	cases := []struct {
+		offset int
+		want   string
+	}{
+		{0, "Oct 20, 2026, 14:03:05 GMT"},
+		{3 * 3600, "Oct 20, 2026, 14:03:05 GMT+3"},
+		{-(4*3600 + 30*60), "Oct 20, 2026, 14:03:05 GMT-4:30"},
+	}
+	for _, c := range cases {
+		tm := time.Date(2026, 10, 20, 14, 3, 5, 0, time.FixedZone("", c.offset))
+		if got := fullTime(tm); got != c.want {
+			t.Errorf("offset %d: got %q, want %q", c.offset, got, c.want)
+		}
+	}
+}
+
+func TestListingFolderModTime(t *testing.T) {
+	dir := t.TempDir()
+	old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	newer := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	newest := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)
+	write := func(rel string, mt time.Time) {
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("docs/deep/a.md", newer)
+	// Hidden and filtered files must not count.
+	write("docs/.secret.md", newest)
+	write("docs/deep/b.bin", newest)
+	for _, d := range []string{"docs/deep", "docs"} {
+		if err := os.Chtimes(filepath.Join(dir, d), old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := New(Options{Root: dir, Types: []string{"md"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, body := get(t, s, "/")
+	want := strings.ReplaceAll(`title="`+fullTime(newer.Local())+`"`, "+", "&#43;")
+	if !strings.Contains(body, want) {
+		t.Errorf("folder should carry its newest visible file's time %s", want)
+	}
+}
