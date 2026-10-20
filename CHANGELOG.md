@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-21
+
 ### Added
 - A directory whose README is rendered below its listing now gets the
   README's table of contents too.
