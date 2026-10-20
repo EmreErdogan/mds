@@ -1,10 +1,34 @@
 # mds
 
-Serve markdown files as HTML from the command line.
+mds serves a folder or a single file in your browser. Markdown files are
+rendered as clean, readable pages. HTML pages and all other files are served
+as they are. You can also search, see your changes as soon as you save, and
+download pages as PDF, HTML or Word.
+
+![mds serving a folder of notes: listings, rendered pages, live reload, diagrams, search and themes](docs/demo.gif)
+
+## Features
+
+- **Folder listings** with icons, file sizes and last-changed times. A
+  folder's README is shown below its listing.
+- **Readable pages** with code highlighting, tables, task lists, Mermaid
+  diagrams and a table of contents.
+- **HTML sites.** A folder with an `index.html` can open as a website, with
+  its images, styles and scripts.
+- **Live reload.** Save a file and the page updates. This works for HTML pages
+  too.
+- **Search** file names and file contents. Press `s` to start.
+- **Download** a page as PDF, Markdown, HTML or Word (`.docx`).
+- **Open it from other devices** on your network, such as your phone.
+- **Light and dark mode**, and seven accent colors.
+- **One binary.** Nothing else to install. Update it with `mds update`.
+
+## Quick start
 
 ```sh
-mds README.md              # render one file at http://127.0.0.1:8080/
 mds ./docs                 # serve a directory with listings
+mds README.md              # render one file
+mds --open ./docs          # ...and open it in the browser
 mds -t md,png ./docs       # serve only .md and .png files
 mds -x node_modules ./app  # skip node_modules
 mds -p 3000 ./docs         # custom port
@@ -109,8 +133,8 @@ or `mds serve config` to serve it.
   or `export MDS_HOST=127.0.0.1` in your shell rc.
 - What a directory shows is set by `index` (`MDS_INDEX`, or the flags below):
   - `"readme"` (default, `--index`): the listing with `README.md` or `index.md`
-    rendered below it, like GitHub. A directory without one serves its
-    `index.html` if it has one, so a folder holding a static site just works.
+    rendered below it. A directory without one serves its `index.html` if it
+    has one, so a folder holding a static site just works.
   - `"html"` (`--html-index`): `index.html` wins when present; otherwise as
     `"readme"`.
   - `"list"` (`--no-index`): always just the listing.
@@ -123,6 +147,9 @@ or `mds serve config` to serve it.
   glob syntax and match a single file or directory name.
 - `--open` opens `http://127.0.0.1:<port>/` in the local browser. Over SSH or
   without a display it prints a note and keeps serving.
+
+## Details
+
 - Documents with three or more headings get a table of contents: a sidebar on
   wide screens, a "Contents" button in the top bar on narrow ones. Type to
   filter headings, Enter jumps to the first match; `t` or `/` focuses the
